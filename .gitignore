@@ -1,0 +1,40 @@
+# Environment & Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Byte-compiled / Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment Secrets
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs & Observability
+logs/
+*.log
+
+# IDE & Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing & Coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Local Vector Databases & Caches
+chroma_db/
+.qdrant/
