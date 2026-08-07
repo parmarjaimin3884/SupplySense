@@ -1,13 +1,33 @@
 """
-SupplySense — AI Core Qdrant Vector Store Placeholder
-Delegates vector store connection instantiation to backend.app.ai.agents.rag.retriever.get_vectorstore.
+SupplySense -- AI Core Qdrant Bridge
+=====================================
+
+Thin wrapper that delegates to the production Qdrant Manager at
+``backend.app.ai.vectorstore.qdrant_client``.
+
+Kept for backward compatibility with code that imports from
+``backend.app.ai.core``.
 """
 
-from backend.app.ai.agents.rag.retriever import get_vectorstore as _get_vectorstore
+from backend.app.ai.vectorstore.qdrant_client import (
+    get_client,
+    get_vectorstore,
+    QdrantManager,
+)
 
 
-def create_vectorstore_instance():
+def create_vectorstore_instance(collection: str | None = None):
     """
-    Factory wrapper function for creating Qdrant vector store instances.
+    Factory wrapper for creating Qdrant vector store instances.
+
+    Delegates to the singleton ``QdrantManager``.
     """
-    return _get_vectorstore()
+    return get_vectorstore(collection=collection)
+
+
+__all__ = [
+    "create_vectorstore_instance",
+    "get_client",
+    "get_vectorstore",
+    "QdrantManager",
+]

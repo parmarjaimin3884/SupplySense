@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4o"
 
+    # LLM Tuning Parameters
+    LLM_TEMPERATURE: float = 0.0
+    LLM_MAX_TOKENS: Optional[int] = None
+    LLM_TIMEOUT: int = 120
+    LLM_RETRY_COUNT: int = 3
+
     # Observability Config (LangSmith)
     LANGSMITH_API_KEY: Optional[str] = None
     LANGCHAIN_TRACING_V2: bool = True
@@ -52,13 +58,18 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = "supplysense_knowledge"
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
+    QDRANT_GRPC_PORT: int = 6334
     QDRANT_PATH: Optional[str] = None
+    QDRANT_TIMEOUT: int = 60
+    QDRANT_PREFER_GRPC: bool = False
 
     # Embeddings Config
     EMBEDDING_PROVIDER: str = "huggingface"
-    EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    HUGGINGFACE_EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
+    HUGGINGFACE_EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_BATCH_SIZE: int = 64
+    EMBEDDING_DEVICE: Optional[str] = None
 
 
 # Singleton instance

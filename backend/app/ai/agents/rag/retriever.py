@@ -18,130 +18,33 @@ from typing import List, Optional, Dict, Any
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Embedding Factory
+# Embedding Factory (delegated to centralised factory)
 # ---------------------------------------------------------------------------
 
 def get_embeddings():
     """
-    Returns the embedding model based on environment configuration.
-    Defaults to HuggingFace or FastEmbed embeddings. Falls back gracefully.
+    Returns the embedding model via the centralised Embedding Factory.
 
-    Environment Variables:
-        EMBEDDING_PROVIDER: 'huggingface', 'fastembed', or 'fake'
-        HUGGINGFACE_EMBEDDING_MODEL: HF model name (default: 'all-MiniLM-L6-v2')
+    This function is kept for backward compatibility with existing imports.
+    Internally delegates to ``backend.app.ai.embeddings.get_embeddings``.
     """
-    # 1. Try langchain_huggingface
-    try:
-        from langchain_huggingface import HuggingFaceEmbeddings
-        model = os.getenv("HUGGINGFACE_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        logger.info(f"Using HuggingFace embeddings: {model}")
-        return HuggingFaceEmbeddings(model_name=model)
-    except Exception as e:
-        logger.debug(f"langchain_huggingface not available: {e}")
-
-    # 2. Try langchain_community HuggingFaceEmbeddings
-    try:
-        from langchain_community.embeddings import HuggingFaceEmbeddings
-        model = os.getenv("HUGGINGFACE_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        return HuggingFaceEmbeddings(model_name=model)
-    except Exception as e:
-        logger.debug(f"langchain_community HuggingFaceEmbeddings not available: {e}")
-
-    # 3. Try FastEmbed
-    try:
-        from langchain_community.embeddings import FastEmbedEmbeddings
-        logger.info("Using FastEmbed embeddings...")
-        return FastEmbedEmbeddings()
-    except Exception as e:
-        logger.debug(f"FastEmbed embeddings not available: {e}")
-
-    # 4. Fallback: FakeEmbeddings for development when local ML models aren't installed
-    try:
-        from langchain_community.embeddings import FakeEmbeddings
-        logger.warning("Local embedding packages not installed. Using FakeEmbeddings (size=384) for local development.")
-        return FakeEmbeddings(size=384)
-    except Exception as e:
-        logger.error(f"Failed to load any embedding provider: {e}")
-        raise RuntimeError("No embedding provider available.")
+    from backend.app.ai.embeddings import get_embeddings as _factory_get_embeddings
+    return _factory_get_embeddings()
 
 
 # ---------------------------------------------------------------------------
-# Vector Store Factory (Qdrant Primary)
+# Vector Store Factory (delegated to centralised Qdrant Manager)
 # ---------------------------------------------------------------------------
 
 def get_vectorstore():
     """
-    Returns the vector store instance based on environment configuration.
-    Qdrant is the primary vector store for SupplySense.
+    Returns the vector store instance via the centralised Qdrant Manager.
 
-    Environment Variables for Qdrant:
-        VECTORSTORE_PROVIDER: 'qdrant' (default) or 'chroma'
-        QDRANT_URL: Qdrant cloud URL or server URL (e.g., 'https://xyz.qdrant.tech')
-        QDRANT_API_KEY: Qdrant API key for cloud authentication
-        QDRANT_COLLECTION: Collection name (default: 'supplysense_knowledge')
-        QDRANT_HOST: Qdrant server host (default: 'localhost')
-        QDRANT_PORT: Qdrant server gRPC/HTTP port (default: 6333)
-        QDRANT_PATH: Optional local persistence path for file-based Qdrant
+    This function is kept for backward compatibility with existing imports.
+    Internally delegates to ``backend.app.ai.vectorstore.get_vectorstore``.
     """
-    provider = os.getenv("VECTORSTORE_PROVIDER", "qdrant").lower()
-    embeddings = get_embeddings()
-    collection_name = os.getenv("QDRANT_COLLECTION", os.getenv("CHROMA_COLLECTION", "supplysense_knowledge"))
-
-    if provider == "qdrant":
-        url = os.getenv("QDRANT_URL")
-        api_key = os.getenv("QDRANT_API_KEY")
-        host = os.getenv("QDRANT_HOST", "localhost")
-        port = int(os.getenv("QDRANT_PORT", "6333"))
-        path = os.getenv("QDRANT_PATH")
-
-        # Try langchain_qdrant integration
-        try:
-            from langchain_qdrant import QdrantVectorStore
-            from qdrant_client import QdrantClient
-
-            logger.info(f"Initializing QdrantVectorStore for collection '{collection_name}'...")
-
-            if url:
-                client = QdrantClient(url=url, api_key=api_key)
-            elif path:
-                client = QdrantClient(path=path)
-            else:
-                client = QdrantClient(host=host, port=port)
-
-            return QdrantVectorStore(
-                client=client,
-                collection_name=collection_name,
-                embedding=embeddings,
-            )
-
-        except ImportError:
-            logger.warning(
-                "langchain_qdrant or qdrant-client not installed. "
-                "Falling back to ChromaDB vector store if available."
-            )
-            provider = "chroma"
-
-    if provider == "chroma":
-        try:
-            from langchain_chroma import Chroma
-        except ImportError:
-            try:
-                from langchain_community.vectorstores import Chroma
-            except ImportError:
-                raise RuntimeError(
-                    "Neither Qdrant (langchain_qdrant / qdrant-client) nor ChromaDB "
-                    "are available. Please install qdrant-client & langchain-qdrant."
-                )
-
-        persist_dir = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
-        logger.info(f"Using ChromaDB fallback: collection={collection_name}, persist_dir={persist_dir}")
-        return Chroma(
-            collection_name=collection_name,
-            embedding_function=embeddings,
-            persist_directory=persist_dir,
-        )
-
-    raise RuntimeError(f"Unsupported vector store provider: '{provider}'")
+    from backend.app.ai.vectorstore import get_vectorstore as _factory_get_vs
+    return _factory_get_vs()
 
 
 # ---------------------------------------------------------------------------
