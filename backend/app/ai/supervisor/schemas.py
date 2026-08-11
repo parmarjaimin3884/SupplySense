@@ -4,7 +4,7 @@ Pydantic models for intent classification, routing decisions,
 merged multi-agent outputs, and final supervisor response.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -30,6 +30,81 @@ class IntentCategory(str, Enum):
     EXECUTIVE_SUMMARY = "Executive Summary"
     KNOWLEDGE = "Knowledge"
     HYBRID = "Hybrid"
+
+
+class ExecutionMode(str, Enum):
+    """Execution modes for query processing."""
+    DIRECT_TOOL = "direct_tool"
+    AGENT = "agent"
+    RAG = "rag"
+    UNSUPPORTED_HYBRID = "unsupported_hybrid"
+    UNKNOWN = "unknown"
+
+
+class RouterIntent(str, Enum):
+    """Specific intent identifiers for fast routing."""
+    INVENTORY_LOOKUP = "inventory_lookup"
+    INVENTORY_ANALYSIS = "inventory_analysis"
+    SHIPMENT_LOOKUP = "shipment_lookup"
+    SHIPMENT_ANALYSIS = "shipment_analysis"
+    SUPPLIER_LOOKUP = "supplier_lookup"
+    SUPPLIER_ANALYSIS = "supplier_analysis"
+    PURCHASE_ORDER_LOOKUP = "purchase_order_lookup"
+    WAREHOUSE_LOOKUP = "warehouse_lookup"
+    FORECAST = "forecast"
+    RISK_ANALYSIS = "risk_analysis"
+    EXECUTIVE_SUMMARY = "executive_summary"
+    KNOWLEDGE_QUERY = "knowledge_query"
+    UNSUPPORTED_HYBRID = "unsupported_hybrid"
+    UNKNOWN = "unknown"
+
+
+
+class RouterDecision(BaseModel):
+    """
+    Structured output from the Fast Intent Router.
+    Determines execution mode, primary intent, agents/tool selection, and entities.
+    """
+    query_type: ExecutionMode = Field(
+        description="The target execution path for this query."
+    )
+    intent: str = Field(
+        description="Specific query intent string (e.g. 'inventory_lookup', 'knowledge_query')."
+    )
+    agent: Optional[str] = Field(
+        default=None,
+        description="Primary target agent name if query_type is 'agent' or 'rag'."
+    )
+    selected_agents: List[AgentType] = Field(
+        default_factory=list,
+        description="Full list of agents required for execution."
+    )
+    tool: Optional[str] = Field(
+        default=None,
+        description="Direct tool name to invoke if query_type is 'direct_tool'."
+    )
+    entities: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Extracted query parameters (e.g. {'product': 'MacBook', 'warehouse': 'A'})."
+    )
+    explanation: str = Field(
+        default="",
+        description="Reasoning for the routing choice."
+    )
+    confidence: float = Field(
+        default=1.0,
+        description="Router confidence score (0.0 to 1.0).",
+        ge=0.0,
+        le=1.0,
+    )
+    requires_parallel_execution: bool = Field(
+        default=False,
+        description="True if multiple operational agents can run in parallel."
+    )
+    requires_sequential_synthesis: bool = Field(
+        default=False,
+        description="True if Risk or Executive agents depend on output from operational agents."
+    )
 
 
 class IntentClassification(BaseModel):
@@ -81,6 +156,7 @@ class ExecutionMetadata(BaseModel):
     agents_invoked: List[str] = Field(default_factory=list)
     parallel_execution_used: bool = False
     tokens_used: int = 0
+    llm_calls_made: int = 0
 
 
 class SupervisorResponse(BaseModel):
@@ -88,14 +164,20 @@ class SupervisorResponse(BaseModel):
     Final structured response returned by the LangGraph Supervisor.
     Ready to be consumed directly by FastAPI API endpoints or UI.
     """
+    status: str = Field(default="success", description="Status: 'success', 'unsupported_workflow', 'clarification_needed', 'error'.")
     query: str = Field(description="Original user query.")
-    intent: IntentCategory = Field(description="Classified intent category.")
-    selected_agents: List[str] = Field(description="Agents executed during this request.")
-    summary: str = Field(description="Comprehensive executive summary merging all agent outputs.")
-    answer: str = Field(description="Detailed response synthesizing findings across invoked agents.")
+    query_type: str = Field(default="agent", description="Execution path: 'direct_tool', 'agent', 'rag', 'unsupported_hybrid', 'unknown'.")
+    intent: Union[IntentCategory, str] = Field(description="Classified intent category or specific intent string.")
+    selected_agents: List[str] = Field(default_factory=list, description="Agents executed during this request.")
+    agent_used: Optional[str] = Field(default=None, description="Primary agent used if single agent.")
+    tool_used: Optional[str] = Field(default=None, description="Direct tool invoked if query_type is 'direct_tool'.")
+    source: Optional[str] = Field(default=None, description="Data source identifier.")
+    summary: str = Field(description="Comprehensive executive summary merging all outputs.")
+    answer: str = Field(description="Detailed response synthesizing findings across invoked tools/agents.")
     findings: List[MergedFinding] = Field(default_factory=list, description="Key findings from executed agents.")
     recommendations: List[MergedRecommendation] = Field(default_factory=list, description="Consolidated recommendations.")
     citations_and_sources: List[str] = Field(default_factory=list, description="Policy and document sources cited (if RAG invoked).")
-    raw_agent_outputs: Dict[str, Any] = Field(default_factory=dict, description="Structured outputs from each invoked agent.")
-    confidence: float = Field(description="Overall confidence score (0.0 to 1.0) calculated from multi-agent outputs.", ge=0.0, le=1.0)
+    raw_agent_outputs: Dict[str, Any] = Field(default_factory=dict, description="Structured outputs from each invoked agent or direct tool.")
+    confidence: float = Field(description="Overall confidence score (0.0 to 1.0).", ge=0.0, le=1.0)
     execution_metadata: ExecutionMetadata = Field(default_factory=ExecutionMetadata)
+

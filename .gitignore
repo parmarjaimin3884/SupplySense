@@ -8,7 +8,7 @@ venv.bak/
 
 # Byte-compiled / Python Cache
 __pycache__/
-*.py[cod]
+*.py[cod]   
 *$py.class
 
 # Environment Secrets
@@ -38,3 +38,5 @@ coverage.xml
 # Local Vector Databases & Caches
 chroma_db/
 .qdrant/
+qdrant_data/
+

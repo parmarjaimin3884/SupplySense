@@ -20,6 +20,7 @@ except Exception:
 
 from backend.app.config.settings import settings
 from backend.app.utils.logger import logger
+from backend.app.api.routes.ai import router as ai_router
 
 # Initialize FastAPI App Foundation
 app = FastAPI(
@@ -39,6 +40,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register API v1 Routers
+app.include_router(ai_router, prefix="/api/v1")
+
 
 
 @app.get("/", status_code=status.HTTP_200_OK, tags=["System Health"])

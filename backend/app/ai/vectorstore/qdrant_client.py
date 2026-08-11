@@ -475,9 +475,10 @@ class QdrantManager:
             result: Dict[str, Any] = {
                 "collection": name,
                 "status": str(info.status),
-                "points_count": info.points_count,
-                "vectors_count": info.vectors_count,
-                "segments_count": info.segments_count,
+                "points_count": getattr(info, "points_count", 0),
+                "vectors_count": getattr(info, "vectors_count", getattr(info, "points_count", 0)),
+                "segments_count": getattr(info, "segments_count", 0),
+
                 "config": {
                     "params": str(info.config.params) if info.config else None,
                 },
@@ -1153,12 +1154,16 @@ class QdrantManager:
         path = settings.QDRANT_PATH
 
         # Determine connection mode
-        if url and url.strip():
+        is_placeholder = url and ("your-cluster-id" in url or "example" in url)
+        if url and url.strip() and not is_placeholder:
             mode = QdrantConnectionMode.CLOUD
-        elif path and path.strip():
+        elif (path and path.strip()) or is_placeholder:
             mode = QdrantConnectionMode.LOCAL
+            if not path or not path.strip():
+                path = "./qdrant_data"
         else:
             mode = QdrantConnectionMode.SERVER
+
 
         return QdrantConfig(
             mode=mode,

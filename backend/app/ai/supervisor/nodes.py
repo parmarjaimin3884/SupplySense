@@ -351,3 +351,191 @@ async def executive_node(state: SupervisorState) -> dict:
             },
             "nodes_executed": ["executive_node"],
         }
+
+
+# ---------------------------------------------------------------------------
+# Node 8: Direct Tool Node (Fast Operational Database Query)
+# ---------------------------------------------------------------------------
+
+@traceable(name="supervisor_node_direct_tool")
+async def direct_tool_node(state: SupervisorState) -> dict:
+    """
+    Executes existing database tools directly without invoking an AI Agent or LLM.
+    Fastest path for simple factual queries.
+    """
+    question = state.get("user_question", "")
+    target_tool = state.get("target_tool", "")
+    params = state.get("tool_parameters", {}) or {}
+    logger.info(f"Executing direct_tool_node: tool='{target_tool}' params={params}")
+
+    try:
+        from backend.app.ai.tools import product, inventory, shipment, purchase_order, warehouse, analytics, supplier
+
+        answer_text = ""
+        raw_data = None
+        used_tool_name = target_tool or "search_products"
+
+        # 1. Product Quantity / Stock Search
+        if target_tool in ["search_products", "get_inventory", "get_product_inventory"] or "product" in params:
+            prod_name = params.get("product", question)
+            search_res = await product.search_products(keyword=prod_name)
+            
+            if search_res.get("success") and search_res.get("data"):
+                prods = search_res["data"]
+                first_p = prods[0]
+                p_id = first_p["id"]
+                p_name = first_p["name"]
+                
+                inv_res = await product.get_product_inventory(product_id=p_id)
+                raw_data = inv_res
+                
+                if inv_res.get("success") and inv_res.get("data"):
+                    inv_items = inv_res["data"]
+                    total_qty = sum(item.get("available_quantity", 0) for item in inv_items)
+                    total_on_hand = sum(item.get("quantity_on_hand", 0) for item in inv_items)
+                    answer_text = f"{p_name} quantity is {total_qty} units available ({total_on_hand} units on hand across {len(inv_items)} warehouses)."
+                else:
+                    answer_text = f"Found product {p_name} (SKU: {first_p.get('sku')}), but no active inventory records were found."
+            else:
+                answer_text = f"No product matching '{prod_name}' was found in the inventory database."
+                used_tool_name = "search_products"
+
+        # 2. Pending Purchase Orders
+        elif target_tool == "get_pending_purchase_orders":
+            po_res = await purchase_order.get_pending_purchase_orders()
+            raw_data = po_res
+            if po_res.get("success") and isinstance(po_res.get("data"), list):
+                count = len(po_res["data"])
+                answer_text = f"There are currently {count} pending purchase orders."
+            else:
+                answer_text = "Unable to retrieve pending purchase orders at this time."
+
+        # 3. Pending/Active Shipments
+        elif target_tool == "get_pending_shipments":
+            ship_res = await shipment.get_pending_shipments()
+            raw_data = ship_res
+            if ship_res.get("success") and isinstance(ship_res.get("data"), list):
+                count = len(ship_res["data"])
+                answer_text = f"There are currently {count} active/pending shipments."
+            else:
+                answer_text = "Unable to retrieve active shipments at this time."
+
+        # 4. Warehouse inventory
+        elif target_tool in ["get_warehouse_inventory", "get_warehouse"]:
+            wh_name = params.get("warehouse", "")
+            wh_res = await warehouse.get_all_warehouses()
+            raw_data = wh_res
+            matched_wh = None
+            if wh_res.get("success") and wh_res.get("data"):
+                for w in wh_res["data"]:
+                    if wh_name.lower() in w.get("name", "").lower() or wh_name.lower() in w.get("warehouse_code", "").lower():
+                        matched_wh = w
+                        break
+            if matched_wh:
+                w_inv = await warehouse.get_warehouse_inventory(warehouse_id=matched_wh["id"])
+                count = len(w_inv.get("data", [])) if w_inv.get("success") else 0
+                answer_text = f"{matched_wh['name']} contains {count} product inventory records with capacity of {matched_wh.get('capacity', 'N/A')} units."
+            else:
+                answer_text = f"Warehouse matching '{wh_name}' was not found."
+
+        # 5. Dashboard summary metrics fallback
+        else:
+            dash_res = await analytics.get_dashboard_metrics()
+            raw_data = dash_res
+            if dash_res.get("success") and dash_res.get("data"):
+                d = dash_res["data"]
+                answer_text = f"System metrics: {d.get('total_products', 0)} total products, {d.get('total_warehouses', 0)} warehouses, {d.get('total_suppliers', 0)} suppliers."
+            else:
+                answer_text = "Operational query executed successfully."
+
+        return {
+            "status": "success",
+            "query_type": "direct_tool",
+            "target_tool": used_tool_name,
+            "agent_outputs": {
+                "direct_tool": {
+                    "status": "success",
+                    "query_type": "direct_tool",
+                    "answer": answer_text,
+                    "summary": answer_text,
+                    "tool_used": used_tool_name,
+                    "source": "operational_database",
+                    "data": raw_data,
+                    "confidence": 0.99,
+                }
+            },
+            "nodes_executed": ["direct_tool_node"],
+        }
+
+    except Exception as e:
+        logger.error(f"Direct tool node error: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "query_type": "direct_tool",
+            "agent_outputs": {
+                "direct_tool": {
+                    "status": "error",
+                    "query_type": "direct_tool",
+                    "answer": f"Failed to execute direct database lookup: {str(e)}",
+                    "summary": "Direct tool execution error.",
+                    "confidence": 0.0,
+                }
+            },
+            "nodes_executed": ["direct_tool_node"],
+        }
+
+
+# ---------------------------------------------------------------------------
+# Node 9: Unsupported Hybrid Node
+# ---------------------------------------------------------------------------
+
+@traceable(name="supervisor_node_hybrid")
+async def hybrid_node(state: SupervisorState) -> dict:
+    """
+    Handles unsupported hybrid queries combining PostgreSQL operational DB + Qdrant policy.
+    Returns structured unsupported_workflow response without calling DB or LLM.
+    """
+    logger.info("Executing hybrid_node (unsupported hybrid query)...")
+    answer_text = "This query requires both operational data and company policy knowledge. Hybrid reasoning is not enabled yet."
+    return {
+        "status": "unsupported_workflow",
+        "query_type": "unsupported_hybrid",
+        "agent_outputs": {
+            "hybrid": {
+                "status": "unsupported_workflow",
+                "query_type": "unsupported_hybrid",
+                "answer": answer_text,
+                "summary": "Hybrid reasoning is currently unsupported.",
+                "confidence": 1.0,
+            }
+        },
+        "nodes_executed": ["hybrid_node"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Node 10: Clarification Node
+# ---------------------------------------------------------------------------
+
+@traceable(name="supervisor_node_clarification")
+async def clarification_node(state: SupervisorState) -> dict:
+    """
+    Handles unknown or low-confidence queries by requesting clarification from manager.
+    """
+    logger.info("Executing clarification_node (low confidence / ambiguous query)...")
+    answer_text = "I'm not sure which information you're looking for. Could you please clarify your question? For example: specify if you want supplier performance, shipment delays, inventory levels, or company policies."
+    return {
+        "status": "clarification_needed",
+        "query_type": "unknown",
+        "agent_outputs": {
+            "clarification": {
+                "status": "clarification_needed",
+                "query_type": "unknown",
+                "answer": answer_text,
+                "summary": "Clarification required.",
+                "confidence": 0.3,
+            }
+        },
+        "nodes_executed": ["clarification_node"],
+    }
+
