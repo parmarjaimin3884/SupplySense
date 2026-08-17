@@ -9,7 +9,10 @@ import logging
 import time
 from typing import Optional
 
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+try:
+    from langchain.agents import AgentExecutor, create_tool_calling_agent
+except ImportError:
+    from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langsmith import traceable
 
 from backend.app.ai.llm import get_llm

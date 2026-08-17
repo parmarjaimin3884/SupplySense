@@ -14,6 +14,7 @@ Agents invoked:
 
 import logging
 import asyncio
+import re
 from typing import Dict, Any
 
 # Compatibility polyfill for environment's langchain 1.x agent imports
@@ -377,7 +378,32 @@ async def direct_tool_node(state: SupervisorState) -> dict:
 
         # 1. Product Quantity / Stock Search
         if target_tool in ["search_products", "get_inventory", "get_product_inventory"] or "product" in params:
-            prod_name = params.get("product", question)
+            prod_name = params.get("product")
+            wh_filter = params.get("warehouse")
+
+            # Extract warehouse filter from question if present (e.g. "in Surat Warehouse")
+            if not wh_filter:
+                wh_match = re.search(r"in\s+([a-zA-Z0-9\s\-]+?)\s+(?:warehouse|store|branch)", question, re.IGNORECASE)
+                if wh_match:
+                    wh_filter = wh_match.group(1).strip()
+
+            # If no product entity extracted or equals full question, derive from question text
+            if not prod_name or prod_name == question:
+                clean_kw = question
+                if wh_filter:
+                    clean_kw = re.sub(r"(?i)in\s+" + re.escape(wh_filter) + r"\s*(?:warehouse|store|branch)?", "", clean_kw)
+                clean_kw = re.sub(r"(?i)\b(how many|what is|the|current|stock of|quantity of|available|in stock|on hand|in|are there|is there|units of|count|items|products|warehouse)\b", "", clean_kw)
+                clean_kw = re.sub(r"[^\w\s\-]", "", clean_kw)
+                clean_kw = re.sub(r"\s+", " ", clean_kw).strip()
+                prod_name = clean_kw if clean_kw else question
+
+            # Always strip warehouse references from prod_name (router may include them)
+            if wh_filter and prod_name:
+                prod_name = re.sub(r"(?i)\s+in\s+" + re.escape(wh_filter) + r"\s*(?:warehouse|store|branch)?", "", prod_name)
+                prod_name = re.sub(r"(?i)\s*(?:warehouse|store|branch)\s*$", "", prod_name)
+                prod_name = prod_name.strip()
+
+
             search_res = await product.search_products(keyword=prod_name)
             
             if search_res.get("success") and search_res.get("data"):
@@ -391,9 +417,22 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                 
                 if inv_res.get("success") and inv_res.get("data"):
                     inv_items = inv_res["data"]
+                    if wh_filter:
+                        matched_items = [
+                            item for item in inv_items
+                            if item.get("warehouse_name") and wh_filter.lower() in item.get("warehouse_name").lower()
+                        ]
+                        if matched_items:
+                            inv_items = matched_items
+
                     total_qty = sum(item.get("available_quantity", 0) for item in inv_items)
                     total_on_hand = sum(item.get("quantity_on_hand", 0) for item in inv_items)
-                    answer_text = f"{p_name} quantity is {total_qty} units available ({total_on_hand} units on hand across {len(inv_items)} warehouses)."
+                    
+                    if wh_filter and inv_items:
+                        wh_disp = inv_items[0].get("warehouse_name", wh_filter)
+                        answer_text = f"In {wh_disp} Warehouse, {p_name} quantity is {total_qty} units available ({total_on_hand} units on hand)."
+                    else:
+                        answer_text = f"{p_name} quantity is {total_qty} units available ({total_on_hand} units on hand across {len(inv_items)} warehouses)."
                 else:
                     answer_text = f"Found product {p_name} (SKU: {first_p.get('sku')}), but no active inventory records were found."
             else:
@@ -420,15 +459,49 @@ async def direct_tool_node(state: SupervisorState) -> dict:
             else:
                 answer_text = "Unable to retrieve active shipments at this time."
 
-        # 4. Warehouse inventory
-        elif target_tool in ["get_warehouse_inventory", "get_warehouse"]:
+        # 4. Warehouse capacity lookup
+        elif target_tool in ["get_warehouse_capacity", "get_available_capacity"] or state.get("intent") in ["warehouse_capacity_lookup", "Warehouse"]:
             wh_name = params.get("warehouse", "")
+            if not wh_name:
+                wh_match = re.search(r"capacity (?:of|for) (?:the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?", question, re.IGNORECASE) \
+                    or re.search(r"([a-zA-Z0-9\s\-]+?) warehouse (?:capacity|total capacity|max capacity)", question, re.IGNORECASE) \
+                    or re.search(r"warehouse\s+([a-zA-Z0-9\s\-]+)", question, re.IGNORECASE)
+                if wh_match:
+                    wh_name = wh_match.group(1).strip()
+                    wh_name = re.sub(r"[^\w\s\-]", "", wh_name).strip()
+
             wh_res = await warehouse.get_all_warehouses()
             raw_data = wh_res
             matched_wh = None
             if wh_res.get("success") and wh_res.get("data"):
                 for w in wh_res["data"]:
-                    if wh_name.lower() in w.get("name", "").lower() or wh_name.lower() in w.get("warehouse_code", "").lower():
+                    if wh_name and (wh_name.lower() in w.get("name", "").lower() or wh_name.lower() in w.get("warehouse_code", "").lower()):
+                        matched_wh = w
+                        break
+            if matched_wh:
+                capacity = matched_wh.get("capacity", "N/A")
+                utilization = matched_wh.get("current_utilization")
+                util_text = f" (Current utilization: {utilization}%)" if utilization is not None else ""
+                answer_text = f"The capacity of {matched_wh['name']} is {capacity} units.{util_text}"
+                used_tool_name = "get_warehouse_capacity"
+            else:
+                answer_text = f"No warehouse matching '{wh_name}' was found in the database." if wh_name else "No data available."
+
+        # 5. Warehouse inventory & KPI lookup
+        elif target_tool in ["get_warehouse_inventory", "get_warehouse", "get_warehouse_kpi", "warehouse_kpi_tool"]:
+            wh_name = params.get("warehouse", "")
+            if not wh_name:
+                wh_match = re.search(r"for\s+([a-zA-Z0-9\s\-]+)", question, re.IGNORECASE) or re.search(r"warehouse\s+([a-zA-Z0-9\s\-]+)", question, re.IGNORECASE)
+                if wh_match:
+                    wh_name = wh_match.group(1).strip()
+                    wh_name = re.sub(r"[^\w\s\-]", "", wh_name).strip()
+
+            wh_res = await warehouse.get_all_warehouses()
+            raw_data = wh_res
+            matched_wh = None
+            if wh_res.get("success") and wh_res.get("data"):
+                for w in wh_res["data"]:
+                    if wh_name and (wh_name.lower() in w.get("name", "").lower() or wh_name.lower() in w.get("warehouse_code", "").lower()):
                         matched_wh = w
                         break
             if matched_wh:
@@ -436,17 +509,11 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                 count = len(w_inv.get("data", [])) if w_inv.get("success") else 0
                 answer_text = f"{matched_wh['name']} contains {count} product inventory records with capacity of {matched_wh.get('capacity', 'N/A')} units."
             else:
-                answer_text = f"Warehouse matching '{wh_name}' was not found."
+                answer_text = "No data available."
 
-        # 5. Dashboard summary metrics fallback
+        # 5. Default Fallback
         else:
-            dash_res = await analytics.get_dashboard_metrics()
-            raw_data = dash_res
-            if dash_res.get("success") and dash_res.get("data"):
-                d = dash_res["data"]
-                answer_text = f"System metrics: {d.get('total_products', 0)} total products, {d.get('total_warehouses', 0)} warehouses, {d.get('total_suppliers', 0)} suppliers."
-            else:
-                answer_text = "Operational query executed successfully."
+            answer_text = "No data available."
 
         return {
             "status": "success",

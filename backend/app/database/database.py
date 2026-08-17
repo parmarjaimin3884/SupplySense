@@ -22,9 +22,17 @@ class Base(DeclarativeBase):
 
 
 # Convert postgresql:// to postgresql+asyncpg:// if needed
+import re
 db_url = settings.DATABASE_URL
+needs_ssl = "sslmode=require" in db_url or "ssl=true" in db_url
+
 if db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+if "?sslmode=" in db_url or "&sslmode=" in db_url:
+    db_url = re.sub(r'[\?&]sslmode=[^&]+', '', db_url)
+
+connect_args = {"ssl": True} if needs_ssl else {}
 
 # Async Engine Creation
 async_engine: AsyncEngine = create_async_engine(
@@ -34,6 +42,7 @@ async_engine: AsyncEngine = create_async_engine(
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
+    connect_args=connect_args,
 )
 
 # Async Session Factory

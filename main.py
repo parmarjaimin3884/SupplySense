@@ -1,11 +1,15 @@
 """
 SupplySense — Enterprise AI Supply Chain Decision Support System
 FastAPI Application Foundation
+==================================================================
 """
 
 import sys
-from fastapi import FastAPI, status
+import uuid
+import time
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # Compatibility polyfill for environment's langchain 1.x agent imports
 try:
@@ -20,7 +24,8 @@ except Exception:
 
 from backend.app.config.settings import settings
 from backend.app.utils.logger import logger
-from backend.app.api.routes.ai import router as ai_router
+from backend.app.api.v1 import api_v1_router
+from backend.app.schemas.common import ErrorResponse, ErrorDetail
 
 # Initialize FastAPI App Foundation
 app = FastAPI(
@@ -41,14 +46,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register API v1 Routers
-app.include_router(ai_router, prefix="/api/v1")
 
+# Correlation ID & Performance Middleware
+@app.middleware("http")
+async def add_correlation_id_and_timing(request: Request, call_next):
+    req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+    request.state.request_id = req_id
+    start_time = time.time()
+    
+    response = await call_next(request)
+    
+    process_time_ms = (time.time() - start_time) * 1000
+    response.headers["X-Request-ID"] = req_id
+    response.headers["X-Process-Time-MS"] = f"{process_time_ms:.2f}"
+    return response
+
+
+# Register API v1 Aggregated Routers
+app.include_router(api_v1_router, prefix="/api/v1")
 
 
 @app.get("/", status_code=status.HTTP_200_OK, tags=["System Health"])
 async def root():
-    """Root health check endpoint."""
+    """Root system health check endpoint."""
     return {
         "status": "online",
         "system": settings.APP_NAME,
@@ -60,7 +80,7 @@ async def root():
 
 @app.get("/health", status_code=status.HTTP_200_OK, tags=["System Health"])
 async def health_check():
-    """Detailed health check endpoint."""
+    """Detailed system health check endpoint."""
     return {
         "status": "healthy",
         "app_name": settings.APP_NAME,

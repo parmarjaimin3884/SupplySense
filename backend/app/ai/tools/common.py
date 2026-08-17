@@ -13,18 +13,8 @@ if not logger.handlers:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-# Database connection URL - expects asyncpg for async PostgreSQL
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/supplysense"
-)
-
-try:
-    engine = create_async_engine(DATABASE_URL, echo=False)
-    async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-except Exception as e:
-    logger.error(f"Failed to create database engine: {e}")
-    async_session = None
+# Database session factory configured for Neon PostgreSQL
+from backend.app.database.database import async_session_factory as async_session
 
 def format_response(success: bool, message: str, data: Optional[Any] = None) -> Dict[str, Any]:
     """

@@ -3,7 +3,10 @@ import json
 from typing import Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain.agents import AgentExecutor, create_tool_calling_agent
+try:
+    from langchain.agents import AgentExecutor, create_tool_calling_agent
+except ImportError:
+    from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from backend.app.ai.agents.inventory.prompt import get_prompt_template

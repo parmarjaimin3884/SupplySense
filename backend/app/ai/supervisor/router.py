@@ -76,9 +76,17 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
         )
 
     # -----------------------------------------------------------------------
-    # 2. AMBIGUOUS / UNKNOWN CHECK
-    # Queries that are too vague to route confidently
+    # 2. AMBIGUOUS / UNKNOWN & UNSUPPORTED ACTION GUARDRAILS
     # -----------------------------------------------------------------------
+    if any(k in q_lower for k in ["download all", "export database", "export all", "download database", "delete all", "drop table"]):
+        logger.info(f"Deterministic router guardrail intercepted unsupported action: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.UNKNOWN,
+            intent=RouterIntent.UNKNOWN.value,
+            explanation="Bulk data downloading and raw file exports are not supported by the AI Decision Assistant.",
+            confidence=0.99,
+        )
+
     if q_lower in ["tell me something", "show me performance", "hi", "hello", "test", "help", "status"] or q_lower.startswith("tell me something"):
         logger.info(f"Deterministic router matched UNKNOWN/AMBIGUOUS for query: '{q_clean}'")
         return RouterDecision(
@@ -108,13 +116,28 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
             entity = match.group(1).strip()
             # Clean entity stop words
             entity = re.sub(r"\b(there|left|products|units|items)\b", "", entity).strip()
+            # Extract and strip warehouse reference from entity (e.g. "Samsung Galaxy S25 in Surat Warehouse")
+            wh_entity = None
+            wh_in_entity = re.search(r"\s+in\s+([a-zA-Z0-9\s\-]+?)\s*(?:warehouse|store|branch)\s*$", entity, re.IGNORECASE)
+            if wh_in_entity:
+                wh_entity = wh_in_entity.group(1).strip()
+                entity = entity[:wh_in_entity.start()].strip()
+            elif re.search(r"\s+in\s+([a-zA-Z0-9\s\-]+?)\s*$", entity):
+                # Check original question for warehouse keyword after entity
+                wh_q_match = re.search(r"in\s+([a-zA-Z0-9\s\-]+?)\s+(?:warehouse|store|branch)", q_lower, re.IGNORECASE)
+                if wh_q_match:
+                    wh_entity = wh_q_match.group(1).strip()
+                    entity = re.sub(r"\s+in\s+" + re.escape(wh_entity) + r".*$", "", entity, flags=re.IGNORECASE).strip()
             if entity:
-                logger.info(f"Deterministic router matched DIRECT_TOOL (product stock) for '{entity}' in query: '{q_clean}'")
+                entities_dict = {"product": entity, "operation": "current_quantity"}
+                if wh_entity:
+                    entities_dict["warehouse"] = wh_entity
+                logger.info(f"Deterministic router matched DIRECT_TOOL (product stock) for '{entity}'{f' in warehouse {wh_entity}' if wh_entity else ''} in query: '{q_clean}'")
                 return RouterDecision(
                     query_type=ExecutionMode.DIRECT_TOOL,
                     intent=RouterIntent.INVENTORY_LOOKUP.value,
                     tool="search_products",
-                    entities={"product": entity, "operation": "current_quantity"},
+                    entities=entities_dict,
                     explanation=f"Direct product inventory lookup for '{entity}'.",
                     confidence=0.99,
                 )
@@ -157,7 +180,30 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
             confidence=0.98,
         )
 
-    # E. Dashboard summary metrics (e.g. "How many total products?", "How many total warehouses?", "How many total suppliers?")
+    # E. Warehouse Capacity Lookup (e.g. "What is the capacity of Mumbai Warehouse?", "capacity of warehouse Surat")
+    capacity_patterns = [
+        r"(?:what is|what\'s|tell me|show|get) (?:the )?capacity (?:of|for) (?:the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?(?:\s*\?)?$",
+        r"capacity (?:of|for) (?:the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?(?:\s*\?)?$",
+        r"([a-zA-Z0-9\s\-]+?) warehouse (?:capacity|total capacity|max capacity)",
+        r"how much (?:capacity|space) (?:does|is in|has) (?:the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?",
+    ]
+    for pat in capacity_patterns:
+        cap_match = re.search(pat, q_lower)
+        if cap_match:
+            wh_name = cap_match.group(1).strip()
+            wh_name = re.sub(r"\b(the|a|an|total|max|our)\b", "", wh_name).strip()
+            if wh_name:
+                logger.info(f"Deterministic router matched DIRECT_TOOL (warehouse capacity) for '{wh_name}' in query: '{q_clean}'")
+                return RouterDecision(
+                    query_type=ExecutionMode.DIRECT_TOOL,
+                    intent=RouterIntent.WAREHOUSE_CAPACITY_LOOKUP.value,
+                    tool="get_warehouse_capacity",
+                    entities={"warehouse": wh_name},
+                    explanation=f"Direct warehouse capacity lookup for '{wh_name}'.",
+                    confidence=0.99,
+                )
+
+    # F. Dashboard summary metrics (e.g. "How many total products?", "How many total warehouses?", "How many total suppliers?")
     if q_lower in ["how many products are there?", "total product count", "dashboard metrics", "how many suppliers are there?"]:
         return RouterDecision(
             query_type=ExecutionMode.DIRECT_TOOL,

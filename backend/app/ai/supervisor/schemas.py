@@ -51,6 +51,7 @@ class RouterIntent(str, Enum):
     SUPPLIER_ANALYSIS = "supplier_analysis"
     PURCHASE_ORDER_LOOKUP = "purchase_order_lookup"
     WAREHOUSE_LOOKUP = "warehouse_lookup"
+    WAREHOUSE_CAPACITY_LOOKUP = "warehouse_capacity_lookup"
     FORECAST = "forecast"
     RISK_ANALYSIS = "risk_analysis"
     EXECUTIVE_SUMMARY = "executive_summary"

@@ -40,3 +40,12 @@ chroma_db/
 .qdrant/
 qdrant_data/
 
+# Dependencies & Build Artifacts
+node_modules/
+.next/
+dist/
+dist_old_vite_UNUSED/
+*.tsbuildinfo
+.DS_Store
+
+
