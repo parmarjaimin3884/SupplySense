@@ -1,51 +1,37 @@
 # Environment & Virtual Environments
-venv/
-.venv/
-env/
-ENV/
-env.bak/
-venv.bak/
+**/venv/
+**/.venv/
+**/env/
+**/ENV/
 
-# Byte-compiled / Python Cache
-__pycache__/
-*.py[cod]   
-*$py.class
+# Secrets & Local Configurations
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
 
-# Environment Secrets
-.env
-.env.local
-.env.development
-.env.production
+# Dependencies & Build Outputs
+**/node_modules/
+**/.next/
+**/dist/
+**/dist_old_vite_UNUSED/
+**/*.tsbuildinfo
+**/.DS_Store
 
-# Logs & Observability
-logs/
-*.log
-
-# IDE & Editors
-.idea/
-.vscode/
-*.swp
-*.swo
+# Python Cache & Bytecode
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
 
 # Testing & Coverage
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-coverage.xml
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/htmlcov/
 
-# Local Vector Databases & Caches
-chroma_db/
-.qdrant/
-qdrant_data/
-
-# Dependencies & Build Artifacts
-node_modules/
-.next/
-dist/
-dist_old_vite_UNUSED/
-*.tsbuildinfo
-.DS_Store
-
-
+# Local Vector Stores & Logs
+**/qdrant_data/
+**/.qdrant/
+**/logs/
+**/*.log

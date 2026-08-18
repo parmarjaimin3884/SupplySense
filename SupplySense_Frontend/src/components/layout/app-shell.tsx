@@ -1,0 +1,407 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Boxes,
+  Cpu,
+  FileSpreadsheet,
+  Flame,
+  Globe,
+  LayoutDashboard,
+  Menu,
+  PieChart,
+  Search,
+  Settings,
+  ShieldAlert,
+  ShoppingBag,
+  Sparkles,
+  TrendingUp,
+  Truck,
+  Users,
+  X,
+  Building2,
+  PackageCheck,
+  ClipboardList,
+  Bell,
+  ChevronDown,
+  Shield,
+  LogOut,
+} from "lucide-react";
+import { useRole } from "@/context/role-context";
+import { useNotifications } from "@/context/notification-context";
+import { CommandPalette } from "./command-palette";
+import { NotificationDrawer } from "./notification-drawer";
+import { NotificationToast } from "@/components/notifications/notification-toast";
+import { NotificationDetailModal } from "@/components/notifications/notification-detail-modal";
+
+interface AppShellProps {
+  children: React.ReactNode;
+}
+
+interface NavItem {
+  title: string;
+  href: string;
+  icon: any;
+  badge?: number;
+}
+
+interface NavSection {
+  id: string;
+  label: string;
+  role?: string;
+  items: NavItem[];
+}
+
+export function AppShell({ children }: AppShellProps) {
+  const pathname = usePathname();
+  const { role, setRole, isAdmin, setIsCommandPaletteOpen } = useRole();
+  const { unreadCount, setIsDrawerOpen } = useNotifications();
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  // Grouped Navigation Sections (Cal.com & Linear Information Architecture)
+  const navSections: NavSection[] = [
+    {
+      id: "operations",
+      label: "Operations",
+      role: "all",
+      items: [
+        { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { title: "Inventory", href: "/inventory", icon: Boxes },
+        { title: "Suppliers", href: "/suppliers", icon: ShoppingBag },
+        { title: "Purchase Orders", href: "/purchase-orders", icon: ClipboardList },
+        { title: "Shipments", href: "/shipments", icon: Truck },
+      ],
+    },
+    {
+      id: "intelligence",
+      label: "Intelligence",
+      role: "all",
+      items: [
+        { title: "Risks", href: "/risks", icon: ShieldAlert },
+        { title: "Forecasts", href: "/forecasting", icon: TrendingUp },
+        { title: "Executive Insights", href: "/executive", icon: PieChart },
+        { title: "AI Assistant", href: "/assistant", icon: Sparkles },
+      ],
+    },
+    {
+      id: "system",
+      label: "System",
+      role: "all",
+      items: [
+        { title: "Notifications", href: "/notifications", icon: Bell, badge: unreadCount },
+      ],
+    },
+    {
+      id: "administration",
+      label: "Administration",
+      role: "admin",
+      items: [
+        { title: "User Management", href: "/settings/users", icon: Users },
+        { title: "Settings", href: "/settings", icon: Settings },
+      ],
+    },
+  ].filter((sec) => sec.role === "all" || (sec.role === "admin" && isAdmin));
+
+  return (
+    <div className="min-h-screen bg-[#F9FAFB] text-[#111827] flex flex-col">
+      {/* ⌘K Global Command Palette Modal */}
+      <CommandPalette />
+
+      {/* Slide-Over Notification Drawer */}
+      <NotificationDrawer />
+
+      {/* Real-Time Toast System */}
+      <NotificationToast />
+
+      {/* Notification Detailed Telemetry Modal */}
+      <NotificationDetailModal />
+
+      {/* TOP NAVIGATION BAR */}
+      <header className="sticky top-0 z-40 h-14 border-b border-[#E5E7EB] bg-white px-4 sm:px-6 flex items-center justify-between shadow-2xs">
+        {/* Left: Brand Identity + Mobile Menu Toggle */}
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-1.5 text-[#4B5563] hover:text-[#111827] rounded-lg hover:bg-[#F3F4F6]"
+            aria-label="Toggle Navigation"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111827] text-white shadow-xs group-hover:bg-black transition-colors">
+              <Boxes className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-extrabold tracking-tight text-[#111827]">
+                SupplySense
+              </span>
+              <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-[#F3F4F6] text-[#4B5563] px-2 py-0.5 rounded border border-[#E5E7EB]">
+                MAIN WAREHOUSE
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Center: Global Search & Command Trigger (⌘K) */}
+        <div className="hidden sm:flex flex-1 max-w-md mx-6">
+          <button
+            type="button"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="w-full flex items-center justify-between h-9 px-3.5 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] text-xs text-[#9CA3AF] hover:bg-[#F3F4F6] hover:border-[#D1D5DB] transition-all cursor-pointer shadow-2xs"
+          >
+            <div className="flex items-center gap-2">
+              <Search className="h-3.5 w-3.5 text-[#9CA3AF]" />
+              <span>Search SKUs, suppliers, alerts...</span>
+            </div>
+            <kbd className="font-mono text-[10px] bg-white border border-[#E5E7EB] px-1.5 py-0.5 rounded text-[#6B7280]">
+              ⌘K
+            </kbd>
+          </button>
+        </div>
+
+        {/* Right: Actions, Role Switcher, Notifications & User Menu */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Role Switcher Pill */}
+          <div className="flex items-center gap-1.5 bg-[#F3F4F6] p-1 rounded-xl text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setRole("admin")}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                isAdmin
+                  ? "bg-white text-[#111827] shadow-xs font-bold"
+                  : "text-[#6B7280] hover:text-[#111827]"
+              }`}
+            >
+              Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => setRole("inventory_manager")}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                !isAdmin
+                  ? "bg-white text-[#111827] shadow-xs font-bold"
+                  : "text-[#6B7280] hover:text-[#111827]"
+              }`}
+            >
+              Inventory Mgr
+            </button>
+          </div>
+
+          {/* Notification Bell with Dynamic Unread Badge */}
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            className="relative p-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+            aria-label="View notifications"
+          >
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#DC2626] px-1 text-[9px] font-mono font-bold text-white shadow-xs">
+                {unreadCount > 15 ? "15+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* User Profile Avatar Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+            >
+              <div className="h-7 w-7 rounded-lg bg-[#111827] text-white flex items-center justify-center text-xs font-bold">
+                {isAdmin ? "AS" : "SC"}
+              </div>
+              <ChevronDown className="h-3.5 w-3.5 text-[#9CA3AF] hidden sm:inline" />
+            </button>
+
+            {userDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-lg z-50 text-xs animate-in fade-in">
+                <div className="px-3 py-2 border-b border-[#F3F4F6]">
+                  <div className="font-bold text-[#111827]">{isAdmin ? "Alex Sterling" : "Sarah Chen"}</div>
+                  <div className="text-[11px] text-[#6B7280]">
+                    {isAdmin ? "alex.sterling@enterprise.com" : "sarah.chen@enterprise.com"}
+                  </div>
+                  <div className="mt-1 inline-block px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[10px] font-mono font-bold text-[#4B5563]">
+                    {isAdmin ? "ADMINISTRATOR" : "INVENTORY MANAGER"}
+                  </div>
+                </div>
+
+                <div className="py-1">
+                  <Link
+                    href="/settings"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F9FAFB] transition-colors"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    <span>Workspace Settings</span>
+                  </Link>
+                  <Link
+                    href="/settings/notifications"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F9FAFB] transition-colors"
+                  >
+                    <Bell className="h-3.5 w-3.5" />
+                    <span>Notification Preferences</span>
+                  </Link>
+                  <Link
+                    href="/settings/users"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F9FAFB] transition-colors"
+                  >
+                    <Shield className="h-3.5 w-3.5" />
+                    <span>Security & RBAC</span>
+                  </Link>
+                </div>
+
+                <div className="pt-1 border-t border-[#F3F4F6]">
+                  <Link
+                    href="/login"
+                    onClick={() => setUserDropdownOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    <span>Sign Out</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* APPLICATION BODY LAYOUT */}
+      <div className="flex-1 flex mx-auto w-full max-w-[1600px] px-4 sm:px-6 py-6 gap-6">
+        {/* DESKTOP SIDEBAR: LOGICAL ENTERPRISE WORKFLOW */}
+        <aside className="hidden lg:flex flex-col w-56 shrink-0 space-y-5">
+          {navSections.map((section) => (
+            <div key={section.id} className="space-y-1">
+              {/* Section Header with Subtle Styling */}
+              <div className="text-[10px] font-mono font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-1">
+                {section.label}
+              </div>
+
+              {/* Section Navigation Items */}
+              <nav className="space-y-0.5">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        isActive
+                          ? "bg-[#111827] text-white shadow-xs"
+                          : "text-[#4B5563] hover:text-[#111827] hover:bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon
+                          className={`h-4 w-4 shrink-0 ${
+                            isActive ? "text-white" : "text-[#6B7280]"
+                          }`}
+                        />
+                        <span className="truncate">{item.title}</span>
+                      </div>
+
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                            isActive
+                              ? "bg-white/20 text-white"
+                              : "bg-[#DC2626] text-white"
+                          }`}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
+        </aside>
+
+        {/* MAIN ROUTE CONTENT CANVAS */}
+        <main className="flex-1 min-w-0 pb-12">{children}</main>
+      </div>
+
+      {/* MOBILE DRAWER */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 w-64 bg-white p-6 shadow-2xl flex flex-col justify-between overflow-y-auto">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#111827] text-white">
+                    <Boxes className="h-4 w-4" />
+                  </div>
+                  <span className="font-extrabold text-sm text-[#111827]">SupplySense</span>
+                </div>
+                <button onClick={() => setMobileMenuOpen(false)} className="p-1 text-[#9CA3AF] hover:text-[#111827]">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Grouped Mobile Navigation */}
+              <div className="space-y-5">
+                {navSections.map((section) => (
+                  <div key={section.id} className="space-y-1">
+                    <div className="text-[10px] font-mono font-bold tracking-wider text-[#9CA3AF] uppercase px-3 py-1">
+                      {section.label}
+                    </div>
+
+                    <nav className="space-y-0.5">
+                      {section.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = pathname === item.href;
+
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold ${
+                              isActive
+                                ? "bg-[#111827] text-white shadow-xs"
+                                : "text-[#4B5563] hover:bg-[#F3F4F6]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Icon className="h-4 w-4 shrink-0" />
+                              <span>{item.title}</span>
+                            </div>
+                            {item.badge !== undefined && item.badge > 0 && (
+                              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-[#DC2626] text-white">
+                                {item.badge}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </nav>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
