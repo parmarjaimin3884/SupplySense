@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # AI Provider Config
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: Optional[str] = None
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4o"
 
