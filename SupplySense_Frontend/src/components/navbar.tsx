@@ -8,8 +8,8 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 pt-5 sticky top-0 z-50">
-      <header className="mx-auto max-w-[1280px] rounded-2xl border border-[#E5E7EB] bg-white/95 backdrop-blur-md px-6 py-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between">
+    <div className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-[#E5E7EB]/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all">
+      <header className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -78,7 +78,8 @@ export function Navbar() {
 
       {/* Mobile menu dropdown */}
       {mobileMenuOpen && (
-        <div className="mx-auto max-w-[1280px] mt-2 rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-lg lg:hidden">
+        <div className="mx-auto max-w-[1280px] px-4 pb-4 lg:hidden">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white/95 backdrop-blur-md p-5 shadow-lg">
           <nav className="flex flex-col gap-3 text-base font-semibold text-[#4B5563]">
             <Link
               href="#features"
@@ -119,6 +120,7 @@ export function Navbar() {
             </div>
           </nav>
         </div>
+      </div>
       )}
     </div>
   );
