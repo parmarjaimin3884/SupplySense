@@ -71,6 +71,34 @@ async def list_inventory(
                 )
             )
 
+        # Apply status filtering at the SQL level so pagination and count are accurate
+        if q_status and q_status != "ALL":
+            st_upper = q_status.upper()
+            if st_upper == "OUT_OF_STOCK":
+                stmt = stmt.where(Inventory.available_quantity == 0)
+            elif st_upper == "CRITICAL":
+                stmt = stmt.where(
+                    or_(
+                        Inventory.available_quantity == 0,
+                        (Product.reorder_level.isnot(None)) & (Inventory.available_quantity <= (Product.reorder_level / 2))
+                    )
+                )
+            elif st_upper == "LOW_STOCK":
+                stmt = stmt.where(
+                    (Product.reorder_level.isnot(None)) & (Inventory.available_quantity <= Product.reorder_level) & (Inventory.available_quantity > 0)
+                )
+            elif st_upper == "OVERSTOCK":
+                stmt = stmt.where(Inventory.available_quantity > 3000)
+            elif st_upper == "OPTIMAL":
+                stmt = stmt.where(
+                    (Inventory.available_quantity > 0) &
+                    (Inventory.available_quantity <= 3000) &
+                    or_(
+                        Product.reorder_level.is_(None),
+                        Inventory.available_quantity > Product.reorder_level
+                    )
+                )
+
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_items = (await db.execute(count_stmt)).scalar() or 0
 
@@ -94,13 +122,12 @@ async def list_inventory(
             st = "OPTIMAL"
             if inv.available_quantity == 0:
                 st = "OUT_OF_STOCK"
+            elif prod.reorder_level and inv.available_quantity <= (prod.reorder_level / 2):
+                st = "CRITICAL"
             elif prod.reorder_level and inv.available_quantity <= prod.reorder_level:
                 st = "LOW_STOCK"
             elif inv.available_quantity > 3000:
                 st = "OVERSTOCK"
-
-            if status_filter and status_filter != "ALL" and st != status_filter:
-                continue
 
             val = Decimal(str(inv.available_quantity)) * prod.cost_price
             items.append(

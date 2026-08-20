@@ -164,7 +164,10 @@ export default function InventoryPage() {
                 type="text"
                 placeholder="Search SKU, product name, or supplier..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
                 className="w-full h-8 pl-8 pr-3 text-xs bg-white border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#111827]"
               />
             </div>
@@ -172,13 +175,17 @@ export default function InventoryPage() {
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
                 className="h-8 px-2.5 text-xs bg-white border border-[#E5E7EB] rounded-lg focus:outline-none text-[#111827]"
               >
                 <option value="all">All Statuses</option>
                 <option value="critical">Critical</option>
                 <option value="low_stock">Low Stock</option>
                 <option value="optimal">Optimal</option>
+                <option value="overstock">Overstock</option>
                 <option value="out_of_stock">Out of Stock</option>
               </select>
             </div>
@@ -250,6 +257,8 @@ export default function InventoryPage() {
                               ? "bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20"
                               : item.stock_status === "LOW_STOCK"
                               ? "bg-[#FFFBEB] text-[#D97706] border border-[#F59E0B]/20"
+                              : item.stock_status === "OVERSTOCK"
+                              ? "bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20"
                               : "bg-[#F0FDF4] text-[#16A34A] border border-[#16A34A]/20"
                           }`}
                         >
