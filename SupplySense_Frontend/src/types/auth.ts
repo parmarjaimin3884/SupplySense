@@ -46,3 +46,24 @@ export interface UserResponse {
   employee_name?: string | null;
   warehouse_name?: string | null;
 }
+
+export interface UserListItem {
+  id: string;
+  username: string;
+  email: string;
+  role: "Admin" | "Inventory Manager" | string;
+  name: string;
+  department: string;
+  status: "Active" | "Invited" | "Suspended" | string;
+  mfa_enabled: boolean;
+  warehouse_name?: string | null;
+}
+
+export interface CreateUserPayload {
+  name: string;
+  email: string;
+  role: "Admin" | "Inventory Manager" | string;
+  department?: string;
+  password?: string;
+}
+

@@ -59,3 +59,26 @@ class UserResponse(BaseModel):
     role: str = Field(..., description="RBAC Role.")
     employee_name: Optional[str] = Field(default=None, description="Employee full name.")
     warehouse_name: Optional[str] = Field(default=None, description="Assigned warehouse depot.")
+
+
+class UserListItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str = Field(..., description="Unique User ID.")
+    username: str = Field(..., description="Username.")
+    email: str = Field(..., description="Corporate Email.")
+    role: str = Field(..., description="Assigned RBAC role.")
+    name: str = Field(..., description="Display name / employee name.")
+    department: str = Field(default="Operations", description="Department / functional team.")
+    status: str = Field(default="Active", description="User status: Active, Invited, Suspended.")
+    mfa_enabled: bool = Field(default=True, description="MFA / SAML SSO enforcement status.")
+    warehouse_name: Optional[str] = Field(default=None, description="Assigned warehouse facility.")
+
+
+class CreateUserRequest(BaseModel):
+    email: str = Field(..., min_length=5, description="Corporate email.")
+    name: str = Field(..., min_length=2, description="Full name.")
+    role: str = Field(default="Inventory Manager", description="Assigned role: Admin or Inventory Manager.")
+    department: Optional[str] = Field(default="Operations", description="Department.")
+    password: Optional[str] = Field(default=None, min_length=6, description="Optional custom initial password.")
+

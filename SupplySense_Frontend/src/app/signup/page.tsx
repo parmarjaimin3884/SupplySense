@@ -104,38 +104,38 @@ export default function SignupPage() {
           role={selectedRole}
         />
       ) : (
-        <div className="space-y-6">
+        <div className="w-full max-w-md mx-auto my-auto space-y-3">
           {/* Top Step Header */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {/* Step Indicator */}
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#2563EB] bg-[#EFF6FF] border border-[#2563EB]/15 px-2.5 py-0.5 rounded-md">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-[#2563EB] bg-[#EFF6FF] border border-[#2563EB]/15 px-2 py-0.2 rounded">
                 {step === "credentials" ? "Step 1 of 2" : "Step 2 of 2"}
               </span>
 
               <div className="flex items-center gap-1">
                 <span
-                  className={`h-1.5 w-6 rounded-full transition-all ${
+                  className={`h-1.5 w-5 rounded-full transition-all ${
                     step === "credentials" || step === "role"
                       ? "bg-[#111827]"
                       : "bg-[#E5E7EB]"
                   }`}
                 />
                 <span
-                  className={`h-1.5 w-6 rounded-full transition-all ${
+                  className={`h-1.5 w-5 rounded-full transition-all ${
                     step === "role" ? "bg-[#111827]" : "bg-[#E5E7EB]"
                   }`}
                 />
               </div>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#111827]">
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#111827]">
               {step === "credentials"
                 ? "Create Your Workspace"
                 : "Choose Your Workspace Role"}
             </h2>
 
-            <p className="text-xs sm:text-sm text-[#6B7280]">
+            <p className="text-xs text-[#6B7280]">
               {step === "credentials"
                 ? "Start managing inventory and risks smarter."
                 : "Select how you will primarily use SupplySense."}
@@ -144,7 +144,7 @@ export default function SignupPage() {
 
           {/* Feedback Alerts */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#DC2626]/20 flex items-start gap-2.5 text-xs text-[#DC2626]">
+            <div className="p-2.5 rounded-xl bg-[#FEF2F2] border border-[#DC2626]/20 flex items-start gap-2 text-xs text-[#DC2626]">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
@@ -154,26 +154,26 @@ export default function SignupPage() {
             /* STEP 1: Basic Information + Credentials */
             <>
               {/* Social Authentication */}
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <SocialAuthButtons isLoading={isLoading} />
 
-                {/* Cal.com clean minimal divider */}
-                <div className="relative flex items-center justify-center py-2">
+                {/* Clean minimal divider */}
+                <div className="relative flex items-center justify-center py-1">
                   <div className="w-full border-t border-[#E5E7EB]" />
-                  <span className="absolute bg-white px-3 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
+                  <span className="absolute bg-white px-2.5 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
                     OR
                   </span>
                 </div>
               </div>
 
               {/* Form */}
-              <form onSubmit={handleCredentialsSubmit} className="space-y-3.5">
+              <form onSubmit={handleCredentialsSubmit} className="space-y-2.5">
                 {/* Row: Full Name & Company Name */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
                     <label
                       htmlFor="signup-name"
-                      className="block text-xs font-semibold uppercase tracking-wider text-[#374151]"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-[#374151]"
                     >
                       Full Name
                     </label>
@@ -185,14 +185,14 @@ export default function SignupPage() {
                       placeholder="Sarah Chen"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-xl border border-[#E5E7EB] bg-white text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
+                      className="w-full h-9 sm:h-10 px-3 rounded-xl border border-[#E5E7EB] bg-white text-xs sm:text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <label
                       htmlFor="signup-company"
-                      className="block text-xs font-semibold uppercase tracking-wider text-[#374151]"
+                      className="block text-[11px] font-semibold uppercase tracking-wider text-[#374151]"
                     >
                       Company Name
                     </label>
@@ -204,16 +204,16 @@ export default function SignupPage() {
                       placeholder="Apex Logistics Ltd"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      className="w-full h-11 px-3.5 rounded-xl border border-[#E5E7EB] bg-white text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
+                      className="w-full h-9 sm:h-10 px-3 rounded-xl border border-[#E5E7EB] bg-white text-xs sm:text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
                     />
                   </div>
                 </div>
 
                 {/* Work Email Field */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label
                     htmlFor="signup-email"
-                    className="block text-xs font-semibold uppercase tracking-wider text-[#374151]"
+                    className="block text-[11px] font-semibold uppercase tracking-wider text-[#374151]"
                   >
                     Work Email
                   </label>
@@ -225,12 +225,12 @@ export default function SignupPage() {
                     placeholder="sarah.chen@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-11 px-3.5 rounded-xl border border-[#E5E7EB] bg-white text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
+                    className="w-full h-9 sm:h-10 px-3 rounded-xl border border-[#E5E7EB] bg-white text-xs sm:text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
                   />
                 </div>
 
                 {/* Password Field */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <PasswordInput
                     id="signup-password"
                     label="Password"
@@ -244,7 +244,7 @@ export default function SignupPage() {
                 </div>
 
                 {/* Confirm Password Field */}
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <PasswordInput
                     id="signup-confirm-password"
                     label="Confirm Password"
@@ -259,7 +259,7 @@ export default function SignupPage() {
                 {/* Continue to Role Selection Button */}
                 <button
                   type="submit"
-                  className="w-full h-11 rounded-xl bg-[#111827] text-white text-sm font-semibold shadow-xs hover:bg-black active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  className="w-full h-10 rounded-xl bg-[#111827] text-white text-xs sm:text-sm font-semibold shadow-xs hover:bg-black active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-1"
                 >
                   <span>Continue to Role Selection</span>
                   <ArrowRight className="h-4 w-4" />
@@ -268,28 +268,28 @@ export default function SignupPage() {
             </>
           ) : (
             /* STEP 2: Choose Your Workspace Role (Large 2-Card Selection) */
-            <form onSubmit={handleCompleteSetup} className="space-y-5">
+            <form onSubmit={handleCompleteSetup} className="space-y-3.5">
               <RoleSelector
                 selectedRole={selectedRole}
                 onSelectRole={(role) => setSelectedRole(role)}
               />
 
               {/* Terms and Privacy Policy */}
-              <div className="pt-1">
-                <label className="flex items-start gap-2.5 cursor-pointer select-none text-xs text-[#4B5563]">
+              <div className="pt-0.5">
+                <label className="flex items-start gap-2 cursor-pointer select-none text-[11px] text-[#4B5563]">
                   <input
                     type="checkbox"
                     required
                     checked={agreeTerms}
                     onChange={(e) => setAgreeTerms(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-[#D1D5DB] text-[#111827] focus:ring-[#111827]/20 cursor-pointer accent-[#111827]"
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-[#D1D5DB] text-[#111827] focus:ring-[#111827]/20 cursor-pointer accent-[#111827]"
                   />
                   <span className="leading-snug">
                     I agree to the{" "}
                     <Link href="#terms" className="font-semibold text-[#111827] underline hover:text-[#2563EB]">
                       Terms of Service
                     </Link>{" "}
-                    and acknowledge the{" "}
+                    and{" "}
                     <Link href="#privacy" className="font-semibold text-[#111827] underline hover:text-[#2563EB]">
                       Privacy Policy
                     </Link>
@@ -299,13 +299,13 @@ export default function SignupPage() {
               </div>
 
               {/* Action Buttons: Back & Complete Setup */}
-              <div className="flex items-center gap-3 pt-1">
+              <div className="flex items-center gap-2.5 pt-0.5">
                 <button
                   type="button"
                   onClick={() => setStep("credentials")}
-                  className="h-12 px-4 rounded-xl border border-[#E5E7EB] bg-white text-sm font-semibold text-[#4B5563] hover:bg-[#F9FAFB] hover:text-[#111827] active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="h-10 px-3.5 rounded-xl border border-[#E5E7EB] bg-white text-xs sm:text-sm font-semibold text-[#4B5563] hover:bg-[#F9FAFB] hover:text-[#111827] active:scale-[0.98] transition-all flex items-center gap-1 cursor-pointer"
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <ArrowLeft className="h-3.5 w-3.5" />
                   <span>Back</span>
                 </button>
 
@@ -313,7 +313,7 @@ export default function SignupPage() {
                 <button
                   type="submit"
                   disabled={!selectedRole || isLoading}
-                  className="flex-1 h-12 rounded-xl bg-[#111827] text-white text-sm font-semibold shadow-xs hover:bg-black active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex-1 h-10 rounded-xl bg-[#111827] text-white text-xs sm:text-sm font-semibold shadow-xs hover:bg-black active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isLoading ? (
                     <>
@@ -329,7 +329,7 @@ export default function SignupPage() {
           )}
 
           {/* Footer Link */}
-          <div className="pt-2 text-center text-xs text-[#6B7280]">
+          <div className="pt-1 text-center text-xs text-[#6B7280]">
             Already have an account?{" "}
             <Link
               href="/login"

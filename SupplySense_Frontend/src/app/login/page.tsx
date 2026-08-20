@@ -62,62 +62,62 @@ export default function LoginPage() {
       badge="Autonomous Inventory Intelligence"
       previewMode="login"
     >
-      <div className="space-y-6">
+      <div className="w-full max-w-sm mx-auto my-auto space-y-4">
         {/* Right Panel Header */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {/* Logo */}
-          <div className="flex items-center gap-2 mb-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111827] text-white">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#111827] text-white">
               <Boxes className="h-4 w-4" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-[#111827]">
+            <span className="text-base font-bold tracking-tight text-[#111827]">
               SupplySense
             </span>
           </div>
 
-          <h2 className="text-2xl font-bold tracking-tight text-[#111827]">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#111827]">
             Welcome Back
           </h2>
-          <p className="text-sm text-[#6B7280]">
+          <p className="text-xs text-[#6B7280]">
             Sign in to access your workspace.
           </p>
         </div>
 
         {/* Feedback Alerts */}
         {errorMessage && (
-          <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#DC2626]/20 flex items-start gap-2.5 text-xs text-[#DC2626]">
+          <div className="p-2.5 rounded-xl bg-[#FEF2F2] border border-[#DC2626]/20 flex items-start gap-2 text-xs text-[#DC2626]">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>{errorMessage}</span>
           </div>
         )}
 
         {successMessage && (
-          <div className="p-3 rounded-xl bg-[#F0FDF4] border border-[#16A34A]/20 flex items-start gap-2.5 text-xs text-[#16A34A]">
+          <div className="p-2.5 rounded-xl bg-[#F0FDF4] border border-[#16A34A]/20 flex items-start gap-2 text-xs text-[#16A34A]">
             <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
             <span>{successMessage}</span>
           </div>
         )}
 
         {/* Social Authentication */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <SocialAuthButtons isLoading={isLoading} />
 
-          {/* Cal.com clean minimal divider */}
-          <div className="relative flex items-center justify-center py-2">
+          {/* Clean minimal divider */}
+          <div className="relative flex items-center justify-center py-1">
             <div className="w-full border-t border-[#E5E7EB]" />
-            <span className="absolute bg-white px-3 text-[11px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
+            <span className="absolute bg-white px-2.5 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
               OR
             </span>
           </div>
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Work Email Field */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label
               htmlFor="login-email"
-              className="block text-xs font-semibold uppercase tracking-wider text-[#374151]"
+              className="block text-[11px] font-semibold uppercase tracking-wider text-[#374151]"
             >
               Work Email
             </label>
@@ -129,12 +129,12 @@ export default function LoginPage() {
               placeholder="alex@enterprise.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-11 px-3.5 rounded-xl border border-[#E5E7EB] bg-white text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
+              className="w-full h-10 px-3 rounded-xl border border-[#E5E7EB] bg-white text-xs sm:text-sm text-[#111827] placeholder:text-[#9CA3AF] hover:border-[#D1D5DB] focus:border-[#111827] focus:outline-none focus:ring-2 focus:ring-[#111827]/10 transition-all"
             />
           </div>
 
           {/* Password Field */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <PasswordInput
               id="login-password"
               label="Password"
@@ -148,19 +148,19 @@ export default function LoginPage() {
 
           {/* Options: Remember Me & Forgot Password */}
           <div className="flex items-center justify-between text-xs pt-0.5">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-[#4B5563] hover:text-[#111827]">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none text-[#4B5563] hover:text-[#111827]">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-[#D1D5DB] text-[#111827] focus:ring-[#111827]/20 cursor-pointer accent-[#111827]"
+                className="h-3.5 w-3.5 rounded border-[#D1D5DB] text-[#111827] focus:ring-[#111827]/20 cursor-pointer accent-[#111827]"
               />
-              <span className="font-medium">Remember me</span>
+              <span className="text-[11px] font-medium">Remember me</span>
             </label>
 
             <Link
               href="/forgot-password"
-              className="font-medium text-[#2563EB] hover:text-[#1D4ED8] hover:underline transition-colors"
+              className="text-[11px] font-medium text-[#2563EB] hover:text-[#1D4ED8] hover:underline transition-colors"
             >
               Forgot Password?
             </Link>
@@ -170,7 +170,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-11 rounded-xl bg-[#111827] text-white text-sm font-semibold shadow-xs hover:bg-black active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            className="w-full h-10 rounded-xl bg-[#111827] text-white text-xs sm:text-sm font-semibold shadow-xs hover:bg-black active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#111827]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer mt-1"
           >
             {isLoading ? (
               <>
@@ -184,7 +184,7 @@ export default function LoginPage() {
         </form>
 
         {/* Footer Link */}
-        <div className="pt-2 text-center text-xs text-[#6B7280]">
+        <div className="pt-1 text-center text-xs text-[#6B7280]">
           Don&apos;t have an account?{" "}
           <Link
             href="/signup"
