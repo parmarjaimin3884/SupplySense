@@ -8,8 +8,8 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-[#E5E7EB]/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all">
-      <header className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+    <div className="w-full px-4 sm:px-6 lg:px-8 pt-4 pb-2 sticky top-0 z-50 bg-gradient-to-b from-white/95 via-white/50 to-transparent backdrop-blur-[2px] transition-all">
+      <header className="mx-auto max-w-[1280px] rounded-2xl border border-[#E5E7EB] bg-white px-6 py-3.5 shadow-[0_4px_20px_rgba(0,0,0,0.06)] flex items-center justify-between">
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-2.5 group">
