@@ -76,25 +76,25 @@ export default function DemandRiskPage() {
                   SPIKE DETECTED
                 </span>
                 <span className="font-bold text-sm text-[#111827]">
-                  Automotive Sensor SKU-8820 in EMEA Antwerp Node
+                  Automotive Sensor SKU-8820 in Surat Central Warehouse
                 </span>
               </div>
               <span className="text-xs font-bold text-[#D97706]">Exposure: $195,000</span>
             </div>
 
             <p className="text-xs text-[#4B5563] leading-relaxed">
-              Order velocity jumped from 220 units/day to 680 units/day due to German OEM production ramp. Standard ERP lead time cannot replenish Antwerp DC before buffer breach.
+              Order velocity jumped from 220 units/day to 680 units/day due to regional manufacturing surge. Standard supplier lead time cannot replenish Surat Central DC before buffer breach.
             </p>
 
             <div className="pt-2 border-t border-[#F59E0B]/20 flex items-center justify-between">
               <span className="text-xs text-[#D97706] font-semibold flex items-center gap-1">
-                <Zap className="h-3.5 w-3.5" /> Recommendation: Transfer 1,200 units from Chicago DC
+                <Zap className="h-3.5 w-3.5" /> Recommendation: Expedite 1,200 units via Express Inbound Freight
               </span>
               <Link
-                href="/inventory/reorder"
+                href="/inventory"
                 className="h-8 px-3 rounded-lg bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all flex items-center gap-1"
               >
-                <span>Authorize Transfer</span>
+                <span>Inspect Inventory</span>
               </Link>
             </div>
           </div>

@@ -18,7 +18,7 @@ import { useRole } from "@/context/role-context";
 import { MOCK_USERS, UserItem } from "@/data/mock-data";
 
 export default function UserManagementPage() {
-  const { isAdmin, setRole } = useRole();
+  const { isAdmin } = useRole();
   const [users, setUsers] = useState<UserItem[]>(MOCK_USERS);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [newEmail, setNewEmail] = useState("");

@@ -17,16 +17,13 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.database.database import get_db_session
-from backend.app.ai.supervisor import SupplySenseSupervisor
-from backend.app.ai.llm import get_llm as _factory_get_llm
-from backend.app.ai.vectorstore import get_vectorstore as _factory_get_vs
 from backend.app.core.security import decode_access_token
 from backend.app.schemas.auth import UserResponse, UserRole
 
 security_scheme = HTTPBearer(auto_error=False)
 
 # Singleton instances
-_supervisor_instance: Optional[SupplySenseSupervisor] = None
+_supervisor_instance: Optional[Any] = None
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -35,21 +32,24 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-def get_supervisor() -> SupplySenseSupervisor:
+def get_supervisor():
     """Dependency provider for SupplySenseSupervisor orchestrator instance."""
     global _supervisor_instance
     if _supervisor_instance is None:
+        from backend.app.ai.supervisor import SupplySenseSupervisor
         _supervisor_instance = SupplySenseSupervisor()
     return _supervisor_instance
 
 
 def get_llm(**kwargs):
     """Dependency provider for active LLM instance."""
+    from backend.app.ai.llm import get_llm as _factory_get_llm
     return _factory_get_llm(**kwargs)
 
 
 def get_qdrant():
     """Dependency provider for vector store instance."""
+    from backend.app.ai.vectorstore import get_vectorstore as _factory_get_vs
     return _factory_get_vs()
 
 
@@ -64,15 +64,14 @@ async def get_current_user(
     if credentials and credentials.credentials:
         try:
             payload = decode_access_token(credentials.credentials)
-            role_str = payload.get("role", UserRole.OPERATIONS_MANAGER.value)
-            role_enum = UserRole.CSCO_EXECUTIVE if role_str == UserRole.CSCO_EXECUTIVE.value else UserRole.OPERATIONS_MANAGER
+            role_str = str(payload.get("role", "Operations Manager"))
             return UserResponse(
-                id=payload.get("sub", "usr_1001"),
+                id=str(payload.get("sub", "usr_1001")),
                 username=payload.get("username", "manager_john"),
-                email=payload.get("email", "john.doe@supplysense.io"),
-                role=role_enum,
-                employee_name="John Doe",
-                warehouse_name="Main Distribution Hub"
+                email=payload.get("email", "user@supplysense.io"),
+                role=role_str,
+                employee_name=payload.get("username", "Enterprise User"),
+                warehouse_name="Surat Central Warehouse"
             )
         except ValueError as e:
             raise HTTPException(
@@ -82,12 +81,12 @@ async def get_current_user(
             )
             
     # Dev / Header fallback if bearer omitted
-    role_enum = UserRole.CSCO_EXECUTIVE if x_user_role == "CSCO_EXECUTIVE" else UserRole.OPERATIONS_MANAGER
+    role_str = "CSCO_EXECUTIVE" if x_user_role == "CSCO_EXECUTIVE" else (x_user_role or "Operations Manager")
     return UserResponse(
         id="usr_default_mgr",
         username="default_manager",
         email="manager@supplysense.io",
-        role=role_enum,
+        role=role_str,
         employee_name="Enterprise Supply Manager",
         warehouse_name="Surat Central Warehouse"
     )

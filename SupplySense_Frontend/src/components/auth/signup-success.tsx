@@ -22,7 +22,7 @@ export function SignupSuccess({ fullName, companyName, role }: SignupSuccessProp
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          router.push(`/onboarding?role=${role}`);
+          router.push("/dashboard");
           return 0;
         }
         return prev - 1;
@@ -30,7 +30,7 @@ export function SignupSuccess({ fullName, companyName, role }: SignupSuccessProp
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router, role]);
+  }, [router]);
 
   return (
     <div className="space-y-6 text-center py-4">
@@ -84,14 +84,20 @@ export function SignupSuccess({ fullName, companyName, role }: SignupSuccessProp
       {/* Primary CTA with Countdown Indicator */}
       <div className="space-y-2 pt-2">
         <Link
-          href={`/onboarding?role=${role}`}
+          href="/dashboard"
           className="w-full h-11 rounded-xl bg-[#111827] text-white text-sm font-semibold shadow-xs hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
-          <span>Continue to Onboarding</span>
+          <span>Go to Dashboard</span>
           <ArrowRight className="h-4 w-4" />
         </Link>
+        <Link
+          href={`/onboarding?role=${role}`}
+          className="w-full h-10 rounded-xl border border-[#E5E7EB] bg-white text-[#374151] text-xs font-medium hover:bg-[#F9FAFB] active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <span>Optional: Guided Role Setup</span>
+        </Link>
         <p className="text-[11px] text-[#9CA3AF]">
-          Automatically redirecting in {countdown}s...
+          Automatically redirecting to dashboard in {countdown}s...
         </p>
       </div>
     </div>

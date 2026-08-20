@@ -97,7 +97,7 @@ export function HeroDashboard() {
             <div className="text-xl sm:text-2xl font-bold font-mono text-[#DC2626] tracking-tight">
               2 Critical SKUs
             </div>
-            <div className="text-[11px] text-[#DC2626]/80 mt-1">Dallas DC buffer breach in 48h</div>
+            <div className="text-[11px] text-[#DC2626]/80 mt-1">Surat Hub buffer breach in 48h</div>
           </div>
 
           {/* Card 3 */}
@@ -145,9 +145,9 @@ export function HeroDashboard() {
                 </span>
               </div>
               <p className="text-xs text-[#4B5563] mt-0.5">
-                Surplus batch of 1,400 units detected in Chicago DC for{" "}
-                <span className="font-mono font-medium text-[#111827]">TX-8820-A</span>. Dallas DC
-                depletes in 2.1 days.
+                Expedited PO batch of 1,400 units staged for{" "}
+                <span className="font-mono font-medium text-[#111827]">TX-8820-A</span>. Surat Central
+                buffer depletes in 2.1 days.
               </p>
             </div>
           </div>

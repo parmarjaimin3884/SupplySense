@@ -55,7 +55,7 @@ export default function PrimaryIntelligenceDashboard() {
 
   return (
     <AppShell>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E5E7EB] pb-5">
           <div>
@@ -279,7 +279,7 @@ export default function PrimaryIntelligenceDashboard() {
                   purchase_order_id: "PO-8890",
                   carrier: "DHL Express",
                   current_status: "DELAYED",
-                  current_location: "Chicago Cross-Dock",
+                  current_location: "Surat Inbound Hub",
                   delay_days: 5,
                   delay_reason: "Supplier QA verification backlog at facility.",
                   expected_arrival: "2026-08-25",

@@ -195,22 +195,33 @@ export default function SettingsPage() {
         {/* TAB 2: Warehouses (Admin Only) */}
         {activeTab === "warehouses" && (
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-xs space-y-4">
-            <h2 className="text-base font-bold text-[#111827]">Configured Distribution Nodes</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] space-y-1">
-                <div className="font-bold text-[#111827]">Dallas DC (Hub A)</div>
-                <div className="text-[11px] text-[#6B7280]">Primary North America Gateway</div>
-                <div className="text-[10px] font-mono text-[#16A34A] font-bold">Status: Online</div>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-[#111827]">Active Distribution Facility</h2>
+                <p className="text-xs text-[#6B7280]">Primary operational warehouse configured for Version 1 telemetry.</p>
               </div>
-              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] space-y-1">
-                <div className="font-bold text-[#111827]">Chicago Hub (Hub B)</div>
-                <div className="text-[11px] text-[#6B7280]">Central Midwest Cross-Dock</div>
-                <div className="text-[10px] font-mono text-[#16A34A] font-bold">Status: Online</div>
+              <span className="text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20 px-2 py-0.5 rounded-full">
+                SINGLE-HUB OPERATION
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-4 rounded-xl border border-[#2563EB]/30 bg-[#EFF6FF]/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-[#111827]">Surat Central Warehouse (WH-SUR)</div>
+                  <span className="text-[10px] font-mono font-bold bg-[#F0FDF4] text-[#16A34A] px-2 py-0.2 rounded border border-[#16A34A]/20">Active Primary</span>
+                </div>
+                <div className="text-[11px] text-[#4B5563]">Primary Distribution & Logistics Center</div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-[#6B7280] pt-1">
+                  <div>Capacity: <strong className="text-[#111827]">44,398 units</strong></div>
+                  <div>Utilization: <strong className="text-[#111827]">46.89%</strong></div>
+                </div>
               </div>
-              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] space-y-1">
-                <div className="font-bold text-[#111827]">Antwerp Node (EMEA)</div>
-                <div className="text-[11px] text-[#6B7280]">European Distribution Center</div>
-                <div className="text-[10px] font-mono text-[#16A34A] font-bold">Status: Online</div>
+              <div className="p-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] space-y-2 opacity-80">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-[#111827]">Regional Multi-DC Expansion</div>
+                  <span className="text-[10px] font-mono text-[#6B7280] bg-white px-2 py-0.2 rounded border border-[#E5E7EB]">Version 2</span>
+                </div>
+                <div className="text-[11px] text-[#6B7280]">Additional regional warehouse routing nodes (North, South, East) will activate in Version 2.</div>
               </div>
             </div>
           </div>

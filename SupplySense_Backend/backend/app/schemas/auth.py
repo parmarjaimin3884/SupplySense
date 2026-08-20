@@ -16,11 +16,23 @@ except ImportError:
 class UserRole(str, Enum):
     OPERATIONS_MANAGER = "OPERATIONS_MANAGER"
     CSCO_EXECUTIVE = "CSCO_EXECUTIVE"
+    ADMIN = "ADMIN"
+    MANAGER = "MANAGER"
+    STAFF = "STAFF"
+
+
+class SignupRequest(BaseModel):
+    email: str = Field(..., min_length=5, description="Work or corporate email address.")
+    password: str = Field(..., min_length=6, description="User password.")
+    username: Optional[str] = Field(default=None, min_length=2, description="Optional username; defaults to email prefix.")
+    full_name: Optional[str] = Field(default=None, description="User full name.")
+    company_name: Optional[str] = Field(default=None, description="Company/organization name.")
+    role: Optional[str] = Field(default="OPERATIONS_MANAGER", description="Selected role (e.g., admin, inventory_manager, CSCO_EXECUTIVE).")
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=3, description="Username or corporate email.")
-    password: str = Field(..., min_length=4, description="User password.")
+    username: str = Field(..., min_length=2, description="Username or corporate email.")
+    password: str = Field(..., min_length=1, description="User password.")
 
 
 class TokenResponse(BaseModel):
@@ -31,7 +43,7 @@ class TokenResponse(BaseModel):
     user_id: str = Field(..., description="Authenticated user ID.")
     username: str = Field(..., description="Username.")
     email: str = Field(..., description="User email.")
-    role: UserRole = Field(..., description="Assigned RBAC role.")
+    role: str = Field(..., description="Assigned RBAC role.")
 
 
 class RefreshTokenRequest(BaseModel):
@@ -44,6 +56,6 @@ class UserResponse(BaseModel):
     id: str = Field(..., description="Unique User ID.")
     username: str = Field(..., description="Username.")
     email: str = Field(..., description="Corporate Email.")
-    role: UserRole = Field(..., description="RBAC Role.")
+    role: str = Field(..., description="RBAC Role.")
     employee_name: Optional[str] = Field(default=None, description="Employee full name.")
     warehouse_name: Optional[str] = Field(default=None, description="Assigned warehouse depot.")

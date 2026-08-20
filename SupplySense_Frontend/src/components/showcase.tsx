@@ -98,7 +98,7 @@ export function Showcase() {
                     Multi-Node Inventory Ledger & Safety Stock Buffer
                   </h3>
                   <p className="text-sm text-[#6B7280] mt-1">
-                    Sub-second sync across Dallas DC, Chicago Hub, and Rotterdam
+                    Sub-second telemetry sync for Surat Central Warehouse (WH-SUR)
                   </p>
                 </div>
                 <button

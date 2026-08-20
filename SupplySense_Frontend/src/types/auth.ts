@@ -6,6 +6,16 @@
 export enum UserRole {
   OPERATIONS_MANAGER = "OPERATIONS_MANAGER",
   CSCO_EXECUTIVE = "CSCO_EXECUTIVE",
+  ADMIN = "ADMIN",
+}
+
+export interface SignupRequest {
+  email: string;
+  password: string;
+  username?: string;
+  full_name?: string;
+  company_name?: string;
+  role?: string;
 }
 
 export interface LoginRequest {
@@ -21,7 +31,7 @@ export interface TokenResponse {
   user_id: string;
   username: string;
   email: string;
-  role: UserRole;
+  role: string;
 }
 
 export interface RefreshTokenRequest {
@@ -32,7 +42,7 @@ export interface UserResponse {
   id: string;
   username: string;
   email: string;
-  role: UserRole;
+  role: string;
   employee_name?: string | null;
   warehouse_name?: string | null;
 }

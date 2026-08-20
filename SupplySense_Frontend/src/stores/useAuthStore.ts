@@ -2,17 +2,17 @@
  * SupplySense — Zustand Authentication Store
  *
  * Replaces React Context for auth state management.
- * Handles login, logout, token refresh, session restoration, and RBAC.
+ * Handles signup, login, logout, token refresh, session restoration, and RBAC.
  */
 
 import { create } from "zustand";
 import apiClient, { setStoredAuth, clearStoredAuth, getStoredAuth } from "@/lib/api/client";
-import type { UserResponse, UserRole, TokenResponse } from "@/types/auth";
+import type { UserResponse, UserRole, TokenResponse, SignupRequest } from "@/types/auth";
 import type { BaseResponse } from "@/types/common";
 
 interface AuthState {
   user: UserResponse | null;
-  role: UserRole | null;
+  role: string | null;
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
@@ -20,11 +20,12 @@ interface AuthState {
   isHydrated: boolean;
 
   // Actions
+  signup: (payload: SignupRequest) => Promise<TokenResponse>;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
   restoreSession: () => Promise<void>;
-  hasRole: (requiredRole: UserRole) => boolean;
+  hasRole: (requiredRole: string) => boolean;
   setLoading: (loading: boolean) => void;
 }
 
@@ -38,6 +39,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isHydrated: false,
 
   setLoading: (loading: boolean) => set({ isLoading: loading }),
+
+  signup: async (payload: SignupRequest) => {
+    set({ isLoading: true });
+    try {
+      const response = await apiClient.post<BaseResponse<TokenResponse>>(
+        "/auth/signup",
+        payload
+      );
+
+      const data = response.data.data;
+      const user: UserResponse = {
+        id: data.user_id,
+        username: data.username,
+        email: data.email,
+        role: data.role,
+        employee_name: payload.full_name || data.username,
+        warehouse_name: "Surat Central Warehouse",
+      };
+
+      setStoredAuth({
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+      });
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("supplysense_user", JSON.stringify(user));
+        document.cookie = `supplysense_authenticated=true; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `supplysense_role=${data.role || ""}; path=/; max-age=86400; SameSite=Lax`;
+      }
+
+      set({
+        user,
+        role: data.role,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+
+      return data;
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
 
   login: async (username: string, password: string) => {
     set({ isLoading: true });
@@ -53,8 +99,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         username: data.username,
         email: data.email,
         role: data.role,
-        employee_name: null,
-        warehouse_name: null,
+        employee_name: data.username,
+        warehouse_name: "Surat Central Warehouse",
       };
 
       setStoredAuth({
@@ -65,6 +111,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Also store user data for session restoration
       if (typeof window !== "undefined") {
         localStorage.setItem("supplysense_user", JSON.stringify(user));
+        document.cookie = `supplysense_authenticated=true; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `supplysense_role=${data.role || ""}; path=/; max-age=86400; SameSite=Lax`;
       }
 
       set({
@@ -90,6 +138,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       clearStoredAuth();
       if (typeof window !== "undefined") {
         localStorage.removeItem("supplysense_user");
+        document.cookie = `supplysense_authenticated=; path=/; max-age=0`;
+        document.cookie = `supplysense_role=; path=/; max-age=0`;
       }
       set({
         user: null,
@@ -197,8 +247,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  hasRole: (requiredRole: UserRole) => {
+  hasRole: (requiredRole: string) => {
     const currentRole = get().role;
-    return currentRole === requiredRole;
+    return currentRole?.toLowerCase() === requiredRole.toLowerCase();
   },
 }));

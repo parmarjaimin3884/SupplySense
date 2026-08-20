@@ -21,11 +21,12 @@ interface RoleContextType {
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
-/**
- * Maps backend UserRole enum to legacy frontend role string.
- */
-function mapBackendRole(backendRole: UserRole | null): LegacyUserRole {
-  if (backendRole === UserRole.CSCO_EXECUTIVE) return "admin";
+function mapBackendRole(backendRole: string | null | undefined): LegacyUserRole {
+  if (!backendRole) return "inventory_manager";
+  const r = String(backendRole).toLowerCase();
+  if (r.includes("admin") || r.includes("csco") || r.includes("executive")) {
+    return "admin";
+  }
   return "inventory_manager";
 }
 
@@ -35,7 +36,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
 
   // Derive role from auth store when authenticated
   const [role, setRoleState] = useState<LegacyUserRole>("admin");
-  const [activeDC, setActiveDC] = useState<string>("All Distribution Centers");
+  const [activeDC, setActiveDC] = useState<string>("Surat Central Warehouse (WH-SUR)");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
 

@@ -83,7 +83,7 @@ export function AuthDashboardPreview({ mode = "signup" }: AuthDashboardPreviewPr
             <div className="text-xl font-bold font-mono text-[#DC2626] tracking-tight">
               2 SKUs &lt; 48h
             </div>
-            <div className="text-[10px] text-[#DC2626]/80 mt-0.5">Dallas DC buffer breach</div>
+            <div className="text-[10px] text-[#DC2626]/80 mt-0.5">Surat Hub buffer breach</div>
           </div>
 
           {/* Card 3: Critical Alerts */}
@@ -97,7 +97,7 @@ export function AuthDashboardPreview({ mode = "signup" }: AuthDashboardPreviewPr
             <div className="text-xl font-bold font-mono text-[#111827] tracking-tight">
               96.8% Fidelity
             </div>
-            <div className="text-[10px] text-[#9CA3AF] mt-0.5">Shenzen corridor delayed</div>
+            <div className="text-[10px] text-[#9CA3AF] mt-0.5">Tokyo corridor delayed</div>
           </div>
         </div>
 
@@ -118,12 +118,12 @@ export function AuthDashboardPreview({ mode = "signup" }: AuthDashboardPreviewPr
           </div>
 
           <p className="text-xs text-[#374151] leading-relaxed">
-            Surplus batch of 1,400 units detected in Chicago DC for <strong className="font-mono text-[#111827]">TX-8820-A</strong>. Dallas DC buffer depletes in 2.1 days.
+            Expedited replenishment batch of 1,400 units staged for <strong className="font-mono text-[#111827]">TX-8820-A</strong>. Surat Central buffer depletes in 2.1 days.
           </p>
 
           <div className="flex items-center justify-between pt-2 border-t border-[#2563EB]/15 text-xs">
             <span className="text-[#2563EB] font-semibold flex items-center gap-1 text-[11px]">
-              <Zap className="h-3.5 w-3.5" /> Action: TO-4091 Auto-Drafted ($48k saved)
+              <Zap className="h-3.5 w-3.5" /> Action: PO-4091 Auto-Drafted ($48k saved)
             </span>
             <span className="text-[10px] font-bold text-[#16A34A] bg-[#F0FDF4] border border-[#16A34A]/25 px-2 py-0.5 rounded-md">
               Approved
@@ -141,7 +141,7 @@ export function AuthDashboardPreview({ mode = "signup" }: AuthDashboardPreviewPr
             <div className="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors">
               <div>
                 <div className="font-mono font-bold text-[#111827]">TX-8820-A · Microcontroller M4</div>
-                <div className="text-[10px] text-[#6B7280]">Dallas DC · 180 units available</div>
+                <div className="text-[10px] text-[#6B7280]">Surat Central · 180 units available</div>
               </div>
               <div className="text-right">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20">
@@ -154,7 +154,7 @@ export function AuthDashboardPreview({ mode = "signup" }: AuthDashboardPreviewPr
             <div className="px-3.5 py-2.5 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors">
               <div>
                 <div className="font-mono font-bold text-[#111827]">PW-9011-C · Stepdown Regulator</div>
-                <div className="text-[10px] text-[#6B7280]">Chicago Hub · 1,950 units available</div>
+                <div className="text-[10px] text-[#6B7280]">Surat Central · 1,950 units available</div>
               </div>
               <div className="text-right">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFFBEB] text-[#D97706] border border-[#F59E0B]/20">

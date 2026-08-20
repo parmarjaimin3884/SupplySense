@@ -82,7 +82,7 @@ export const ENTERPRISE_ROLES: RoleDefinition[] = [
         {
           id: "warehouse_setup",
           title: "Warehouse Setup & DC Routing",
-          description: "Map primary DC nodes (Dallas, Chicago, Antwerp) and inter-facility transit times.",
+          description: "Calibrate primary Surat Central Warehouse (WH-SUR) storage zones and dock routing.",
           estimatedMinutes: 3,
         },
         {

@@ -71,6 +71,7 @@ class User(Base):
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     username = Column(String, nullable=False, unique=True)
     email = Column(String, nullable=False, unique=True)
+    password_hash = Column(String, nullable=True)
     role = Column(String, nullable=False)
 
     employee = relationship("Employee", back_populates="user", uselist=False)

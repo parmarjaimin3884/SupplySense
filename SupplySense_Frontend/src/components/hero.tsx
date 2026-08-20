@@ -28,8 +28,8 @@ const DATE_DETAILS: Record<number, DateDetail> = {
     sku: "SKU-8820 (Semiconductor IC)",
     badge: "P0 Stockout Imminent",
     badgeType: "critical",
-    detail: "Buffer drops to 0.8 days. Recommended: Inter-DC Transfer from Chicago Hub.",
-    actionText: "Approve Transfer",
+    detail: "Buffer drops to 0.8 days. Recommended: Expedite PO batch to Surat Central.",
+    actionText: "Approve Expedite",
     impactText: "Saves $38,400 Line Idle Loss",
   },
   20: {
@@ -62,10 +62,10 @@ const DATE_DETAILS: Record<number, DateDetail> = {
   23: {
     day: 23,
     sku: "SKU-6302 (Hydraulic Actuator)",
-    badge: "Cross-Dock Balancing",
+    badge: "Bay Stock Balancing",
     badgeType: "action",
-    detail: "Dallas node facing high demand; Dallas DC pulling 1,200 units from surplus Dallas North node.",
-    actionText: "Authorize Cross-Dock",
+    detail: "Surat Central primary bay facing surge demand; auto-staging 1,200 units from reserve racking.",
+    actionText: "Authorize Transfer",
     impactText: "Zero Duplicate Inventory Spend",
   },
   14: {
@@ -193,11 +193,11 @@ export function Hero() {
                     {/* Facility Avatar */}
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#111827] text-white text-xs font-bold font-mono">
-                        DC
+                        WH
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-[#111827]">Dallas Logistics Node</div>
-                        <div className="text-xs text-[#6B7280]">Central Region Hub</div>
+                        <div className="text-sm font-bold text-[#111827]">Surat Central Warehouse</div>
+                        <div className="text-xs text-[#6B7280]">Primary Distribution Hub (WH-SUR)</div>
                       </div>
                     </div>
 

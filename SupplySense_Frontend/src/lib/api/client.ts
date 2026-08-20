@@ -109,8 +109,13 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // 401 — attempt silent token refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const isAuthRoute =
+      originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/signup") ||
+      originalRequest.url?.includes("/auth/refresh");
+
+    // 401 on protected routes — attempt silent token refresh
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -150,7 +155,7 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           processQueue(refreshError, null);
           clearStoredAuth();
-          if (typeof window !== "undefined") {
+          if (typeof window !== "undefined" && window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
             window.location.href = "/login";
           }
           return Promise.reject(refreshError);
@@ -159,7 +164,7 @@ apiClient.interceptors.response.use(
         }
       } else {
         clearStoredAuth();
-        if (typeof window !== "undefined") {
+        if (typeof window !== "undefined" && window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
           window.location.href = "/login";
         }
       }

@@ -10,8 +10,10 @@ import { PasswordStrength } from "@/components/auth/password-strength";
 import { RoleSelector } from "@/components/auth/role-selector";
 import { SignupSuccess } from "@/components/auth/signup-success";
 import { UserRole } from "@/data/roles-data";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function SignupPage() {
+  const signup = useAuthStore((state) => state.signup);
   const [step, setStep] = useState<"credentials" | "role" | "success">("credentials");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -51,7 +53,7 @@ export default function SignupPage() {
     setStep("role");
   };
 
-  const handleCompleteSetup = (e: React.FormEvent) => {
+  const handleCompleteSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -67,11 +69,25 @@ export default function SignupPage() {
 
     setIsLoading(true);
 
-    // Simulate enterprise provisioning
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await signup({
+        email: email.trim(),
+        password,
+        full_name: fullName.trim(),
+        company_name: companyName.trim(),
+        role: selectedRole === "admin" ? "Admin" : "Operations Manager",
+      });
       setStep("success");
-    }, 1200);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Registration failed. Please check your details and try again.";
+      setErrorMessage(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

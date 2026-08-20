@@ -39,7 +39,7 @@ function OnboardingContent() {
 
   // Inventory Manager dynamic mock states
   const [safetyBufferDays, setSafetyBufferDays] = useState(7);
-  const [activeDCLocations, setActiveDCLocations] = useState(["Dallas DC", "Chicago Hub"]);
+  const [activeDCLocations, setActiveDCLocations] = useState(["Surat Central Warehouse (WH-SUR)"]);
 
   const currentRoleMeta: RoleDefinition = useMemo(() => {
     return ENTERPRISE_ROLES.find((r) => r.id === currentRole) || ENTERPRISE_ROLES[0];
@@ -280,7 +280,7 @@ function OnboardingContent() {
                 <div className="space-y-2">
                   <div className="font-semibold text-[#111827]">Active Distribution Centers</div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {["Dallas DC (Hub A)", "Chicago Hub (Hub B)", "Antwerp Node (EMEA)"].map((node) => (
+                    {["Surat Central Warehouse (WH-SUR)", "Hazira Inbound Customs Terminal"].map((node) => (
                       <div
                         key={node}
                         className="p-3 bg-[#FAFAFA] border border-[#E5E7EB] rounded-xl flex items-center justify-between"

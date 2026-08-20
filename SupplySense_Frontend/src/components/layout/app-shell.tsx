@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useRole } from "@/context/role-context";
 import { useNotifications } from "@/context/notification-context";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { CommandPalette } from "./command-palette";
 import { NotificationDrawer } from "./notification-drawer";
 import { NotificationToast } from "@/components/notifications/notification-toast";
@@ -58,6 +59,8 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { role, setRole, isAdmin, setIsCommandPaletteOpen } = useRole();
   const { unreadCount, setIsDrawerOpen } = useNotifications();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -121,7 +124,7 @@ export function AppShell({ children }: AppShellProps) {
       <NotificationDetailModal />
 
       {/* TOP NAVIGATION BAR */}
-      <header className="sticky top-0 z-40 h-14 border-b border-[#E5E7EB] bg-white px-4 sm:px-6 flex items-center justify-between shadow-2xs">
+      <header className="sticky top-0 z-40 h-14 border-b border-[#E5E7EB] bg-white/95 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shadow-2xs">
         {/* Left: Brand Identity + Mobile Menu Toggle */}
         <div className="flex items-center gap-4">
           <button
@@ -142,7 +145,7 @@ export function AppShell({ children }: AppShellProps) {
                 SupplySense
               </span>
               <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-[#F3F4F6] text-[#4B5563] px-2 py-0.5 rounded border border-[#E5E7EB]">
-                MAIN WAREHOUSE
+                SURAT CENTRAL (WH-SUR)
               </span>
             </div>
           </Link>
@@ -167,30 +170,14 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Right: Actions, Role Switcher, Notifications & User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Role Switcher Pill */}
-          <div className="flex items-center gap-1.5 bg-[#F3F4F6] p-1 rounded-xl text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setRole("admin")}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                isAdmin
-                  ? "bg-white text-[#111827] shadow-xs font-bold"
-                  : "text-[#6B7280] hover:text-[#111827]"
-              }`}
-            >
-              Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole("inventory_manager")}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                !isAdmin
-                  ? "bg-white text-[#111827] shadow-xs font-bold"
-                  : "text-[#6B7280] hover:text-[#111827]"
-              }`}
-            >
-              Inventory Mgr
-            </button>
+          {/* Authenticated Role Badge (Read-Only) */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] text-xs font-semibold text-[#111827] shadow-2xs">
+            {isAdmin ? (
+              <Shield className="h-3.5 w-3.5 text-[#2563EB]" />
+            ) : (
+              <Boxes className="h-3.5 w-3.5 text-[#059669]" />
+            )}
+            <span>{isAdmin ? "Admin" : "Inventory Mgr"}</span>
           </div>
 
           {/* Notification Bell with Dynamic Unread Badge */}
@@ -216,7 +203,16 @@ export function AppShell({ children }: AppShellProps) {
               className="flex items-center gap-2 p-1 rounded-xl hover:bg-[#F3F4F6] transition-colors cursor-pointer"
             >
               <div className="h-7 w-7 rounded-lg bg-[#111827] text-white flex items-center justify-center text-xs font-bold">
-                {isAdmin ? "AS" : "SC"}
+                {user?.employee_name
+                  ? user.employee_name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()
+                  : isAdmin
+                  ? "AD"
+                  : "IM"}
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-[#9CA3AF] hidden sm:inline" />
             </button>
@@ -224,9 +220,11 @@ export function AppShell({ children }: AppShellProps) {
             {userDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-lg z-50 text-xs animate-in fade-in">
                 <div className="px-3 py-2 border-b border-[#F3F4F6]">
-                  <div className="font-bold text-[#111827]">{isAdmin ? "Alex Sterling" : "Sarah Chen"}</div>
-                  <div className="text-[11px] text-[#6B7280]">
-                    {isAdmin ? "alex.sterling@enterprise.com" : "sarah.chen@enterprise.com"}
+                  <div className="font-bold text-[#111827]">
+                    {user?.employee_name || user?.username || (isAdmin ? "Administrator" : "Inventory Manager")}
+                  </div>
+                  <div className="text-[11px] text-[#6B7280] truncate">
+                    {user?.email || (isAdmin ? "admin@supplysense.io" : "manager@supplysense.io")}
                   </div>
                   <div className="mt-1 inline-block px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[10px] font-mono font-bold text-[#4B5563]">
                     {isAdmin ? "ADMINISTRATOR" : "INVENTORY MANAGER"}
@@ -261,14 +259,18 @@ export function AppShell({ children }: AppShellProps) {
                 </div>
 
                 <div className="pt-1 border-t border-[#F3F4F6]">
-                  <Link
-                    href="/login"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setUserDropdownOpen(false);
+                      await logout();
+                      window.location.href = "/login";
+                    }}
+                    className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                     <span>Sign Out</span>
-                  </Link>
+                  </button>
                 </div>
               </div>
             )}
@@ -277,9 +279,9 @@ export function AppShell({ children }: AppShellProps) {
       </header>
 
       {/* APPLICATION BODY LAYOUT */}
-      <div className="flex-1 flex mx-auto w-full max-w-[1600px] px-4 sm:px-6 py-6 gap-6">
-        {/* DESKTOP SIDEBAR: LOGICAL ENTERPRISE WORKFLOW */}
-        <aside className="hidden lg:flex flex-col w-56 shrink-0 space-y-5">
+      <div className="flex-1 flex mx-auto w-full max-w-[1600px] px-4 sm:px-6 py-6 gap-6 items-start">
+        {/* DESKTOP SIDEBAR: LOGICAL ENTERPRISE WORKFLOW (Sticky) */}
+        <aside className="hidden lg:flex flex-col w-56 shrink-0 space-y-5 sticky top-20 h-[calc(100vh-6rem)] overflow-y-auto pr-2 pb-6">
           {navSections.map((section) => (
             <div key={section.id} className="space-y-1">
               {/* Section Header with Subtle Styling */}
