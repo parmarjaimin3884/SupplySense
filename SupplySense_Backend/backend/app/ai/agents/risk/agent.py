@@ -141,41 +141,18 @@ class RiskAgent:
                 forecast_output=forecast_analysis,
             )
 
-            # -- Step 2: LLM reasoning pass ------------------------------------
+            # Single-pass structured risk reasoning
+            structuring_chain = get_structuring_chain(self.llm)
             messages = [
                 SystemMessage(content=RISK_AGENT_SYSTEM_PROMPT),
                 HumanMessage(content=analysis_prompt),
             ]
 
-            raw_response = await self.llm.ainvoke(messages)
-            raw_output = raw_response.content
-
-            logger.info("RiskAgent completed LLM reasoning pass.")
-
-            # -- Step 3: Structure the raw output ------------------------------
-            structuring_chain = get_structuring_chain(self.llm)
-
-            formatting_prompt = (
-                f"You are a strict data formatter for an enterprise risk management system. "
-                f"Convert the following operational risk analysis into the required JSON schema.\n\n"
-                f"Original Question: {user_question}\n"
-                f"Upstream Agents Reporting: {agents_available}/4\n"
-                f"Risk Analysis to Format:\n{raw_output}\n\n"
-                f"IMPORTANT RULES:\n"
-                f"- Set 'risk_level' to one of: 'Very Low', 'Low', 'Medium', 'High', 'Critical'.\n"
-                f"- Each finding in 'critical_findings' must have a unique risk_id (e.g. RISK-INV-001).\n"
-                f"- Each finding must specify 'source_agents' — which upstream agents provided evidence.\n"
-                f"- Rank 'priority_actions' by urgency (rank 1 = most urgent).\n"
-                f"- Set 'confidence' considering {agents_available}/4 agents reported.\n"
-                f"- Ensure the output strictly adheres to the RiskAnalysisResponse schema.\n"
-                f"- DO NOT hallucinate any data — only use information from the analysis above."
-            )
-
             final_response: RiskAnalysisResponse = (
-                await structuring_chain.ainvoke(formatting_prompt)
+                await structuring_chain.ainvoke(messages)
             )
 
-            # -- Step 4: Record final state ------------------------------------
+            # -- Step 3: Record final state ------------------------------------
             state.final_response = final_response
             state.risk_score = _risk_level_to_score(final_response.risk_level)
             state.severity = final_response.risk_level

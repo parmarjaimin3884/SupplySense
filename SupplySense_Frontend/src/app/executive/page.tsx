@@ -32,28 +32,6 @@ export default function ExecutiveBriefingPage() {
   const { data: health, isLoading: isHealthLoading } = useBusinessHealth();
   const { data: boardReport, isLoading: isBoardLoading } = useBoardReport();
 
-  if (isHydrated && role && role !== UserRole.CSCO_EXECUTIVE) {
-    return (
-      <AppShell>
-        <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FEF2F2] mb-4">
-            <ShieldAlert className="h-7 w-7 text-[#DC2626]" />
-          </div>
-          <h2 className="text-xl font-bold text-[#111827]">Access Restricted</h2>
-          <p className="text-xs text-[#6B7280] max-w-md mt-1 mb-4">
-            The Executive Briefing Center is exclusively reserved for CSCO & C-Suite leadership. Your current role is <strong>{role}</strong>.
-          </p>
-          <Link
-            href="/dashboard"
-            className="px-4 py-2 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all"
-          >
-            Return to Operational Dashboard
-          </Link>
-        </div>
-      </AppShell>
-    );
-  }
-
   return (
     <AppShell>
       <div className="space-y-8">

@@ -37,13 +37,30 @@ async def get_inventory(product_id: str, session: AsyncSession = None) -> dict:
 @tool_error_handler
 async def get_inventory_by_warehouse(warehouse_id: str, session: AsyncSession = None) -> dict:
     """
-    Get all inventory records for a specific warehouse.
+    Get all inventory records for a specific warehouse. Accepts warehouse UUID or warehouse code (e.g. WH-SUR, Surat).
     """
+    import re
+    from sqlalchemy import or_
+    target_id = warehouse_id
+    if not re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', str(warehouse_id).strip()):
+        wh_stmt = select(Warehouse).where(
+            or_(
+                Warehouse.warehouse_code.ilike(warehouse_id),
+                Warehouse.name.ilike(f"%{warehouse_id}%")
+            )
+        )
+        wh_res = await session.execute(wh_stmt)
+        wh = wh_res.scalars().first()
+        if wh:
+            target_id = wh.id
+        else:
+            return format_response(False, f"Warehouse '{warehouse_id}' not found.")
+
     stmt = (
         select(Inventory)
         .options(selectinload(Inventory.product))
-        .where(Inventory.warehouse_id == warehouse_id)
-        .limit(15)
+        .where(Inventory.warehouse_id == target_id)
+        .limit(20)
     )
     result = await session.execute(stmt)
     inventories = result.scalars().all()

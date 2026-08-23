@@ -166,44 +166,105 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
             confidence=0.99,
         )
 
-    # D. Products in Warehouse (e.g. "How many products are in Warehouse A?")
-    wh_match = re.search(r"products (?:are )?in warehouse\s+([a-zA-Z0-9\s\-]+)", q_lower) or re.search(r"warehouse\s+([a-zA-Z0-9\s\-]+)\s+inventory", q_lower)
-    if wh_match:
-        wh_name = wh_match.group(1).strip()
-        logger.info(f"Deterministic router matched DIRECT_TOOL (warehouse inventory) for '{wh_name}' in query: '{q_clean}'")
-        return RouterDecision(
-            query_type=ExecutionMode.DIRECT_TOOL,
-            intent=RouterIntent.WAREHOUSE_LOOKUP.value,
-            tool="get_warehouse_inventory",
-            entities={"warehouse": wh_name},
-            explanation=f"Direct warehouse inventory lookup for '{wh_name}'.",
-            confidence=0.98,
-        )
+    # D. Products in Warehouse & Inventory Records (e.g. "How many total products and inventory records are in our warehouse?", "How many products in warehouse?")
+    wh_inv_patterns = [
+        r"how many (?:total )?(?:products|items|inventory records|skus)(?: and inventory records)? (?:are )?(?:in|inside|at) (?:our |the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?",
+        r"products (?:are )?in (?:our |the )?warehouse\s*([a-zA-Z0-9\s\-]*)",
+        r"warehouse\s+([a-zA-Z0-9\s\-]+)\s+inventory",
+        r"total (?:products|inventory records|items) in (?:our |the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?",
+        r"how many (?:products|items|inventory records) in (?:our |the |surat )?warehouse",
+    ]
+    for pat in wh_inv_patterns:
+        wh_match = re.search(pat, q_lower)
+        if wh_match:
+            wh_name = wh_match.group(1).strip() if (wh_match.groups() and wh_match.group(1)) else "Surat Central Warehouse"
+            if not wh_name or wh_name.lower() in ["our", "the", "current", "main", "warehouse", "central"]:
+                wh_name = "Surat Central Warehouse"
+            logger.info(f"Deterministic router matched DIRECT_TOOL (warehouse inventory) for '{wh_name}' in query: '{q_clean}'")
+            return RouterDecision(
+                query_type=ExecutionMode.DIRECT_TOOL,
+                intent=RouterIntent.WAREHOUSE_LOOKUP.value,
+                tool="get_warehouse_inventory",
+                entities={"warehouse": wh_name},
+                explanation=f"Direct warehouse inventory lookup for '{wh_name}'.",
+                confidence=0.99,
+            )
 
-    # E. Warehouse Capacity Lookup (e.g. "What is the capacity of Mumbai Warehouse?", "capacity of warehouse Surat")
+    # E. Warehouse Capacity & Utilization Lookup (e.g. "What is our current warehouse capacity and utilization?", "capacity of Surat Warehouse")
     capacity_patterns = [
-        r"(?:what is|what\'s|tell me|show|get) (?:the )?capacity (?:of|for) (?:the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?(?:\s*\?)?$",
-        r"capacity (?:of|for) (?:the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?(?:\s*\?)?$",
+        r"(?:what is|what\'s|tell me|show|get) (?:our )?(?:current )?warehouse capacity",
+        r"(?:what is|what\'s|tell me|show|get) (?:the )?capacity (?:of|for) (?:the |our )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?(?:\s*\?)?$",
+        r"capacity (?:of|for) (?:the |our )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?(?:\s*\?)?$",
         r"([a-zA-Z0-9\s\-]+?) warehouse (?:capacity|total capacity|max capacity)",
-        r"how much (?:capacity|space) (?:does|is in|has) (?:the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?",
+        r"how much (?:capacity|space) (?:does|is in|has) (?:the |our )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?",
     ]
     for pat in capacity_patterns:
         cap_match = re.search(pat, q_lower)
         if cap_match:
-            wh_name = cap_match.group(1).strip()
-            wh_name = re.sub(r"\b(the|a|an|total|max|our)\b", "", wh_name).strip()
-            if wh_name:
-                logger.info(f"Deterministic router matched DIRECT_TOOL (warehouse capacity) for '{wh_name}' in query: '{q_clean}'")
-                return RouterDecision(
-                    query_type=ExecutionMode.DIRECT_TOOL,
-                    intent=RouterIntent.WAREHOUSE_CAPACITY_LOOKUP.value,
-                    tool="get_warehouse_capacity",
-                    entities={"warehouse": wh_name},
-                    explanation=f"Direct warehouse capacity lookup for '{wh_name}'.",
-                    confidence=0.99,
-                )
+            wh_name = cap_match.group(1).strip() if (cap_match.groups() and cap_match.group(1)) else "Surat Central Warehouse"
+            wh_name = re.sub(r"\b(the|a|an|total|max|our|current|main)\b", "", wh_name).strip()
+            if not wh_name:
+                wh_name = "Surat Central Warehouse"
+            logger.info(f"Deterministic router matched DIRECT_TOOL (warehouse capacity) for '{wh_name}' in query: '{q_clean}'")
+            return RouterDecision(
+                query_type=ExecutionMode.DIRECT_TOOL,
+                intent=RouterIntent.WAREHOUSE_CAPACITY_LOOKUP.value,
+                tool="get_warehouse_capacity",
+                entities={"warehouse": wh_name},
+                explanation=f"Direct warehouse capacity lookup for '{wh_name}'.",
+                confidence=0.99,
+            )
 
-    # F. Dashboard summary metrics (e.g. "How many total products?", "How many total warehouses?", "How many total suppliers?")
+    # F. Low Stock & Reorder Point Lookup (e.g. "Which products are currently below their reorder point?", "Which products need reorder?")
+    if any(k in q_lower for k in [
+        "below their reorder", "below reorder", "need reorder", "needs reorder",
+        "low stock", "reorder point", "reorder level", "which products need reorder",
+        "items to reorder", "what should we reorder", "what to reorder", "reorder threshold",
+        "stock is low", "low inventory"
+    ]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (low stock / reorders) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent=RouterIntent.INVENTORY_LOOKUP.value,
+            tool="get_low_stock_products",
+            explanation="Direct lookup for products currently at or below their reorder threshold.",
+            confidence=0.99,
+        )
+
+    # G. Out of Stock / Depleted Stock Lookup (e.g. "Which products are out of stock?", "zero stock items")
+    if any(k in q_lower for k in ["out of stock", "zero stock", "depleted stock", "stockout products", "stockout items", "no stock"]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (out of stock) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent=RouterIntent.INVENTORY_LOOKUP.value,
+            tool="get_out_of_stock_products",
+            explanation="Direct lookup for out-of-stock products.",
+            confidence=0.99,
+        )
+
+    # H. Risky / Unreliable Suppliers (e.g. "Show high-risk suppliers", "risky suppliers", "unreliable suppliers", "supplier risks")
+    if any(k in q_lower for k in ["high-risk suppliers", "high risk suppliers", "risky suppliers", "late suppliers", "unreliable suppliers", "supplier risks", "supplier risk"]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (risky suppliers) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent=RouterIntent.SUPPLIER_LOOKUP.value,
+            tool="get_risky_suppliers",
+            explanation="Direct lookup for high-risk or low-reliability suppliers.",
+            confidence=0.99,
+        )
+
+    # I. Dead Stock / Overstock (e.g. "Show dead stock", "non-moving inventory")
+    if any(k in q_lower for k in ["dead stock", "non-moving", "slow-moving", "overstocked"]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (dead stock) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent=RouterIntent.INVENTORY_LOOKUP.value,
+            tool="get_dead_stock_products",
+            explanation="Direct lookup for dead or slow-moving stock.",
+            confidence=0.99,
+        )
+
+    # J. Dashboard summary metrics (e.g. "How many total products?", "How many total warehouses?", "How many total suppliers?")
     if q_lower in ["how many products are there?", "total product count", "dashboard metrics", "how many suppliers are there?"]:
         return RouterDecision(
             query_type=ExecutionMode.DIRECT_TOOL,

@@ -43,7 +43,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
       <body
         className={`${plusJakartaSans.variable} ${geistMono.variable} font-sans antialiased bg-[#F9FAFB] text-[#111827] selection:bg-[#111827] selection:text-white`}
       >

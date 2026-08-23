@@ -55,7 +55,7 @@ export function clearStoredAuth(): void {
 // ──────────────────────────────────────────────
 const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 15_000,
+  timeout: 60_000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",

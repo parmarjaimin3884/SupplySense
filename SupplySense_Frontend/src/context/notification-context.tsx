@@ -22,6 +22,8 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+const NOTIFICATIONS_STORAGE_KEY = "supplysense_notifications_v1";
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { data: apiAlerts } = useDashboardAlerts();
@@ -30,11 +32,48 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const [activeToast, setActiveToast] = useState<NotificationItem | null>(null);
+  const [hasHydratedFromStorage, setHasHydratedFromStorage] = useState(false);
   const [hasSeededFromApi, setHasSeededFromApi] = useState(false);
 
-  // Merge API alerts into notifications (once after first successful fetch)
+  // 1. Hydrate notifications from localStorage on mount
   useEffect(() => {
-    if (isAuthenticated && apiAlerts && apiAlerts.length > 0 && !hasSeededFromApi) {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setNotifications(parsed);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load notifications from localStorage:", err);
+      } finally {
+        setHasHydratedFromStorage(true);
+      }
+    }
+  }, []);
+
+  // Helper to update state and sync to localStorage
+  const saveAndSetNotifications = (
+    updater: (prev: NotificationItem[]) => NotificationItem[]
+  ) => {
+    setNotifications((prev) => {
+      const next = updater(prev);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(next));
+        } catch (e) {
+          console.error("Failed to save notifications to localStorage:", e);
+        }
+      }
+      return next;
+    });
+  };
+
+  // 2. Merge API alerts into notifications (once after first successful fetch)
+  useEffect(() => {
+    if (isAuthenticated && apiAlerts && apiAlerts.length > 0 && !hasSeededFromApi && hasHydratedFromStorage) {
       const apiNotifications: NotificationItem[] = apiAlerts.map((alert) => ({
         id: alert.id,
         type: alert.severity === "CRITICAL" ? "Critical" : alert.severity === "HIGH" ? "High" : alert.severity === "MEDIUM" ? "Medium" : "Low",
@@ -51,25 +90,31 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         actionUrl: "/dashboard",
       }));
 
-      setNotifications((prev) => [...apiNotifications, ...prev]);
+      saveAndSetNotifications((prev) => {
+        const existingIds = new Set(prev.map((n) => n.id));
+        const newItems = apiNotifications.filter((n) => !existingIds.has(n.id));
+        return [...newItems, ...prev];
+      });
       setHasSeededFromApi(true);
     }
-  }, [isAuthenticated, apiAlerts, hasSeededFromApi]);
+  }, [isAuthenticated, apiAlerts, hasSeededFromApi, hasHydratedFromStorage]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const markAsRead = (id: string) => {
-    setNotifications((prev) =>
+    saveAndSetNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
   };
 
   const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    saveAndSetNotifications((prev) =>
+      prev.map((n) => ({ ...n, isRead: true }))
+    );
   };
 
   const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    saveAndSetNotifications((prev) => prev.filter((n) => n.id !== id));
     if (selectedNotification?.id === id) {
       setSelectedNotification(null);
     }
@@ -99,7 +144,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       ...item,
     };
 
-    setNotifications((prev) => [defaultToast, ...prev]);
+    saveAndSetNotifications((prev) => [defaultToast, ...prev]);
     setActiveToast(defaultToast);
   };
 

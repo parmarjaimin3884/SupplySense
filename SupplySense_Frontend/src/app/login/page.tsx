@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Boxes, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -22,6 +22,10 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    router.prefetch("/dashboard");
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -37,11 +41,7 @@ export default function LoginPage() {
     try {
       // Send email value as username (backend expects LoginRequest.username)
       await login(email, password);
-      setSuccessMessage("Authentication successful! Redirecting to workspace...");
-      // Redirect after brief delay for UX
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 600);
+      router.push("/dashboard");
     } catch (err) {
       const message =
         err instanceof ApiError

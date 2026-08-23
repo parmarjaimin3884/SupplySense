@@ -47,12 +47,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Role-based check for executive routes
+  // Allow authenticated users to view executive insights
   if (EXECUTIVE_ONLY_ROUTES.has(pathname)) {
-    const roleCookie = request.cookies.get("supplysense_role");
-    if (roleCookie?.value !== "CSCO_EXECUTIVE") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
+    // Verified by authCookie above
+    return NextResponse.next();
   }
 
   return NextResponse.next();

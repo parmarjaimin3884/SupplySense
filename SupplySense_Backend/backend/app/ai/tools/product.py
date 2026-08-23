@@ -45,17 +45,36 @@ async def get_product(product_id: str, session: AsyncSession = None) -> dict:
 @tool_error_handler
 async def search_products(keyword: str, session: AsyncSession = None) -> dict:
     """
-    Search products by keyword (name or sku).
+    Search products by keyword (name or sku). Handles plurals, singulars, and partial names.
     """
+    clean_kw = keyword.strip()
+    variations = {clean_kw}
+
+    # Add singular / plural variations
+    if clean_kw.lower().endswith("ies"):
+        variations.add(clean_kw[:-3] + "y")
+    elif clean_kw.lower().endswith("es"):
+        variations.add(clean_kw[:-2])
+    elif clean_kw.lower().endswith("s") and len(clean_kw) > 3:
+        variations.add(clean_kw[:-1])
+
+    # Also add individual significant words if multi-word
+    words = [w for w in clean_kw.split() if len(w) > 2 and w.lower() not in ["the", "and", "for", "with", "laptops", "laptop", "phones", "phone"]]
+    for w in words:
+        variations.add(w)
+        if w.lower().endswith("s") and len(w) > 3:
+            variations.add(w[:-1])
+
+    filters = []
+    for var in variations:
+        if var:
+            filters.append(Product.name.ilike(f"%{var}%"))
+            filters.append(Product.sku.ilike(f"%{var}%"))
+
     stmt = (
         select(Product)
         .options(selectinload(Product.category), selectinload(Product.brand))
-        .where(
-            or_(
-                Product.name.ilike(f"%{keyword}%"),
-                Product.sku.ilike(f"%{keyword}%")
-            )
-        )
+        .where(or_(*filters))
         .limit(50)
     )
     result = await session.execute(stmt)
