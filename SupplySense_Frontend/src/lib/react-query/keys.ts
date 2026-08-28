@@ -82,6 +82,21 @@ export const queryKeys = {
     health: ["assistant", "health"] as const,
   },
 
+  // ── Warehouses ──
+  warehouses: {
+    all: ["warehouses"] as const,
+    utilization: ["warehouses", "utilization"] as const,
+    capacity: ["warehouses", "capacity"] as const,
+    detail: (id: string) => ["warehouses", "detail", id] as const,
+  },
+
+  // ── Transfers ──
+  transfers: {
+    all: ["transfers"] as const,
+    recommendations: ["transfers", "recommendations"] as const,
+    list: ["transfers", "list"] as const,
+  },
+
   // ── Settings ──
   settings: {
     profile: ["settings", "profile"] as const,

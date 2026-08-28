@@ -5,6 +5,7 @@ import {
   Award,
   Zap,
 } from "lucide-react";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export function Benefits() {
   const benefits = [
@@ -59,41 +60,48 @@ export function Benefits() {
     <section className="px-4 sm:px-6 lg:px-8 py-28 bg-white border-y border-[#E5E7EB]">
       <div className="mx-auto max-w-[1280px]">
         {/* Header */}
-        <div className="max-w-3xl mb-18">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-4 py-1.5 text-xs font-bold text-[#111827] mb-5 border border-[#E5E7EB]">
-            <span>Operational ROI</span>
+        <ScrollReveal animation="fade-up">
+          <div className="max-w-3xl mb-18">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#F3F4F6] px-4 py-1.5 text-xs font-bold text-[#111827] mb-5 border border-[#E5E7EB]">
+              <span>Operational ROI</span>
+            </div>
+            <h2 className="text-4xl sm:text-5xl md:text-[56px] font-extrabold tracking-tight text-[#111827] leading-[1.08]">
+              Built for tangible business outcomes.
+            </h2>
+            <p className="mt-5 text-lg sm:text-xl text-[#6B7280]">
+              Every metric in SupplySense ties directly to working capital savings, revenue protection,
+              and supply chain resilience.
+            </p>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-[56px] font-extrabold tracking-tight text-[#111827] leading-[1.08]">
-            Built for tangible business outcomes.
-          </h2>
-          <p className="mt-5 text-lg sm:text-xl text-[#6B7280]">
-            Every metric in SupplySense ties directly to working capital savings, revenue protection,
-            and supply chain resilience.
-          </p>
-        </div>
+        </ScrollReveal>
 
-        {/* 5 Benefits Grid */}
+        {/* 5 Benefits Grid with Staggered Scroll Reveal */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {benefits.map((b, idx) => (
-            <div
+            <ScrollReveal
               key={idx}
-              className="rounded-3xl border border-[#E5E7EB] bg-[#F9FAFB] p-9 hover:bg-white hover:shadow-[0_4px_24px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between"
+              animation="fade-up"
+              delay={(idx % 3) * 100}
+              duration={650}
+              className="h-full"
             >
-              <div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#111827] border border-[#E5E7EB] mb-5">
-                  {b.num}
+              <div className="h-full rounded-3xl border border-[#E5E7EB] bg-[#F9FAFB] p-9 hover:bg-white hover:shadow-[0_4px_24px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between">
+                <div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-xs font-bold text-[#111827] border border-[#E5E7EB] mb-5">
+                    {b.num}
+                  </div>
+                  <h3 className="text-2xl font-extrabold text-[#111827] mt-4">{b.title}</h3>
+                  <p className="mt-3 text-base text-[#6B7280] leading-relaxed">{b.description}</p>
                 </div>
-                <h3 className="text-2xl font-extrabold text-[#111827] mt-4">{b.title}</h3>
-                <p className="mt-3 text-base text-[#6B7280] leading-relaxed">{b.description}</p>
-              </div>
 
-              <div className="mt-10 pt-5 border-t border-[#E5E7EB]">
-                <div className="text-4xl font-extrabold font-mono text-[#111827] tracking-tight">
-                  {b.metric}
+                <div className="mt-10 pt-5 border-t border-[#E5E7EB]">
+                  <div className="text-4xl font-extrabold font-mono text-[#111827] tracking-tight">
+                    {b.metric}
+                  </div>
+                  <div className="text-sm font-semibold text-[#6B7280] mt-1.5">{b.metricLabel}</div>
                 </div>
-                <div className="text-sm font-semibold text-[#6B7280] mt-1.5">{b.metricLabel}</div>
               </div>
-            </div>
+            </ScrollReveal>
           ))}
         </div>
       </div>

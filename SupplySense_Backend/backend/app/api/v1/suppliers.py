@@ -38,13 +38,34 @@ async def list_suppliers(
         q_term = f"%{search}%"
         stmt = stmt.where(or_(Supplier.company_name.ilike(q_term), Supplier.city.ilike(q_term), Supplier.country.ilike(q_term)))
     if risk_rating:
-        stmt = stmt.where(Supplier.risk_rating == risk_rating)
+        r_upper = risk_rating.strip().upper()
+        if r_upper in ("HEALTHY", "LOW"):
+            stmt = stmt.where(or_(Supplier.risk_rating.ilike("LOW"), Supplier.risk_rating.ilike("HEALTHY")))
+        elif r_upper in ("AT RISK", "HIGH", "HIGH_RISK", "CRITICAL"):
+            stmt = stmt.where(or_(
+                Supplier.risk_rating.ilike("HIGH%"),
+                Supplier.risk_rating.ilike("CRITICAL%"),
+                Supplier.risk_rating.ilike("AT RISK%")
+            ))
+        elif r_upper in ("UNDER REVIEW", "MEDIUM", "MODERATE"):
+            stmt = stmt.where(or_(
+                Supplier.risk_rating.ilike("MED%"),
+                Supplier.risk_rating.ilike("MOD%"),
+                Supplier.risk_rating.ilike("UNDER%")
+            ))
+        else:
+            stmt = stmt.where(Supplier.risk_rating.ilike(f"%{risk_rating}%"))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total_items = (await db.execute(count_stmt)).scalar() or 0
 
     offset = (page - 1) * limit
-    stmt = stmt.offset(offset).limit(limit).order_by(Supplier.company_name.asc())
+    stmt = stmt.order_by(
+        Supplier.reliability_score.desc().nulls_last(),
+        Supplier.quality_score.desc().nulls_last(),
+        Supplier.average_delay.asc().nulls_last(),
+        Supplier.company_name.asc()
+    ).offset(offset).limit(limit)
     results = (await db.execute(stmt)).scalars().all()
 
     items = [SupplierResponse.model_validate(s) for s in results]

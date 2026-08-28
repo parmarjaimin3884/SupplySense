@@ -176,7 +176,7 @@ export default function SKUDetailPage({
 
           <div className="p-4 rounded-2xl border border-[#E5E7EB] bg-white space-y-2 shadow-xs">
             <span className="text-xs text-[#6B7280]">Unit Acquisition Cost</span>
-            <div className="text-3xl font-bold font-mono text-[#111827]">${item.unitCost.toFixed(2)}</div>
+            <div className="text-3xl font-bold font-mono text-[#111827]">₹{item.unitCost.toLocaleString('en-IN')}</div>
             <p className="text-xs text-[#4B5563]">Current contracted unit purchase price.</p>
           </div>
         </section>

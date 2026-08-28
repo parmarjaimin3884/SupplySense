@@ -48,7 +48,7 @@ async def get_summary(db: AsyncSession = Depends(get_db)) -> BaseResponse[Dashbo
 async def get_kpis() -> BaseResponse[List[KPICardResponse]]:
     """Returns telemetry KPI cards."""
     kpis = [
-        KPICardResponse(id="kpi-1", title="Total Inventory Value", metric_value="$14.25M", trend_percentage=4.2, trend_direction="UP", status_badge="HEALTHY"),
+        KPICardResponse(id="kpi-1", title="Total Inventory Value", metric_value="₹14.25 Cr", trend_percentage=4.2, trend_direction="UP", status_badge="HEALTHY"),
         KPICardResponse(id="kpi-2", title="Stockout Vulnerability", metric_value="14 SKUs", trend_percentage=-8.5, trend_direction="DOWN", status_badge="WARNING"),
         KPICardResponse(id="kpi-3", title="Active In-Transit Freight", metric_value="18 Shipments", trend_percentage=2.1, trend_direction="UP", status_badge="HEALTHY"),
         KPICardResponse(id="kpi-4", title="Supplier Risk Exposure", metric_value="6 Vendors", trend_percentage=12.0, trend_direction="UP", status_badge="CRITICAL"),

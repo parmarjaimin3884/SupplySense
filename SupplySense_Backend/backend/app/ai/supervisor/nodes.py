@@ -370,7 +370,7 @@ async def direct_tool_node(state: SupervisorState) -> dict:
     logger.info(f"Executing direct_tool_node: tool='{target_tool}' params={params}")
 
     try:
-        from backend.app.ai.tools import product, inventory, shipment, purchase_order, warehouse, analytics, supplier
+        from backend.app.ai.tools import product, inventory, shipment, purchase_order, warehouse, analytics, supplier, fulfillment, transfers
 
         answer_text = ""
         raw_data = None
@@ -616,7 +616,100 @@ async def direct_tool_node(state: SupervisorState) -> dict:
             else:
                 answer_text = "Unable to retrieve dead stock records at this time."
 
-        # 10. Default Fallback
+        # 10. Order Fulfillment & Multi-Warehouse Routing
+        elif target_tool in ["find_best_fulfillment_warehouse", "fulfillment_routing"] or state.get("intent") == "fulfillment_routing":
+            # Extract quantity
+            qty_match = re.search(r"\b(\d+)\s*(?:units|items|pieces|x)?\b", question)
+            qty = int(qty_match.group(1)) if qty_match else 1
+
+            # Extract destination city
+            known_cities = ["pune", "mumbai", "delhi", "ahmedabad", "surat", "bangalore", "bengaluru", "chennai", "hyderabad", "kolkata", "jaipur", "goa", "noida", "gurgaon", "chandigarh", "lucknow", "mysore", "coimbatore", "kochi", "rajkot"]
+            dest_city = None
+            q_low = question.lower()
+            for city in known_cities:
+                if re.search(r"\b" + city + r"\b", q_low):
+                    dest_city = city.title()
+                    break
+
+            if not dest_city:
+                dest_match = re.search(r"(?:for a customer in|for delivery to|destination\s+is|to|in|for)\s+([a-zA-Z]+)(?:\s+customer|\s+store|\s+branch|\s*\?|$)", question, re.IGNORECASE)
+                if dest_match:
+                    cand = dest_match.group(1).strip()
+                    if cand.lower() not in ["our", "the", "a", "an", "this", "order", "warehouse", "customer", "store", "product"]:
+                        dest_city = cand.title()
+
+            # Extract product keyword
+            prod_name = ""
+            p_match = re.search(r"(?:order of|order for|units of|items of)\s+([a-zA-Z0-9\s\-]+?)(?:\s+for|\s+to|\s+in|\s+with|\s*\?|$)", question, re.IGNORECASE)
+            if not p_match:
+                p_match = re.search(r"\b\d+\s+([a-zA-Z0-9\s\-]+?)(?:\s+for|\s+to|\s+in|\s+with|\s*\?|$)", question, re.IGNORECASE)
+
+            if p_match:
+                prod_name = p_match.group(1).strip()
+
+            if not prod_name or prod_name.lower() in ["units", "items", "this", "product", "goods", "pieces"]:
+                prod_clean = re.sub(r"(?i)\b(which warehouse should fulfill|where should we fulfill|best warehouse to fulfill|which warehouse should ship|where to ship this order|fulfill this order|fulfill an order|where should i ship|fulfill order|this order|order of|order for|order|units of|items of|pieces of|customer in|a customer in|delivery to|for|to|in|\d+)\b", "", question)
+                if dest_city:
+                    prod_clean = re.sub(r"(?i)\b" + re.escape(dest_city) + r"\b", "", prod_clean)
+                prod_name = re.sub(r"[^\w\s\-]", "", prod_clean).strip()
+
+            # Clean leading digits or stop words from prod_name
+            prod_name = re.sub(r"^\d+\s*", "", prod_name).strip()
+            prod_name = re.sub(r"^(?:an|a|the|our|this)\s+", "", prod_name, flags=re.IGNORECASE).strip()
+
+            # Clean product name (e.g. MacBooks -> MacBook)
+            if prod_name.lower().endswith("s") and not prod_name.lower().endswith("ss"):
+                prod_name = prod_name[:-1]
+
+            if not prod_name:
+                prod_name = "MacBook Pro"
+
+            ful_res = await fulfillment.find_best_fulfillment_warehouse(
+                product_name_or_sku=prod_name,
+                quantity=qty,
+                destination_city=dest_city
+            )
+            raw_data = ful_res
+            if ful_res.get("success") and ful_res.get("data"):
+                f_data = ful_res["data"]
+                rec = f_data["recommended_warehouse"]
+                wh_options = f_data.get("all_warehouse_options", [])
+                lines = [
+                    f"• {w['warehouse_name']} ({w['warehouse_code']}): {w['available_quantity']} available | {w['warehouse_utilization_pct']:.1f}% capacity | {w['estimated_transit_days']}d transit"
+                    for w in wh_options
+                ]
+                answer_text = (
+                    f"**Recommended Fulfillment Warehouse:** {rec['warehouse_name']} ({rec['warehouse_code']})\n\n"
+                    f"**Reasoning:** {rec['warehouse_name']} has **{rec['available_quantity']} units available** "
+                    f"of {f_data['product_name']} with capacity utilization at {rec['warehouse_utilization_pct']:.1f}%. "
+                    f"Estimated delivery time: **{rec['estimated_transit_days']} day(s)**.\n\n"
+                    f"**All Regional Depot Inventory:**\n" + "\n".join(lines)
+                )
+                used_tool_name = "find_best_fulfillment_warehouse"
+        # 11. Inter-Depot Stock Transfer & Network Rebalancing
+        elif target_tool in ["recommend_stock_transfers", "stock_rebalancing"] or state.get("intent") == "stock_rebalancing":
+            trf_res = await transfers.recommend_stock_transfers()
+            raw_data = trf_res
+            if trf_res.get("success") and trf_res.get("recommendations"):
+                recs = trf_res["recommendations"]
+                lines = []
+                for idx, r in enumerate(recs, 1):
+                    lines.append(
+                        f"**{idx}. {r['product_name']} ({r['sku']})**\n"
+                        f"   • **Transfer:** {r['recommended_transfer_qty']} units from **{r['from_warehouse_name']}** ({r['from_warehouse_code']}) ➔ **{r['to_warehouse_name']}** ({r['to_warehouse_code']})\n"
+                        f"   • **Reason:** {r['reason']}\n"
+                        f"   • **Est. Transit:** {r['estimated_transit_days']} days | **Cost Savings vs Expedited PO:** ₹{r['estimated_cost_savings']:,.2f}"
+                    )
+                answer_text = (
+                    f"**AI Network Stock Rebalancing Recommendations ({len(recs)} Actions Identified):**\n\n"
+                    + "\n\n".join(lines)
+                    + "\n\n💡 *Initiating these internal transfers rebalances storage headroom and protects against stockout without incurring emergency vendor expedite fees.*"
+                )
+                used_tool_name = "recommend_stock_transfers"
+            else:
+                answer_text = "All regional warehouses currently maintain balanced safety buffers. No critical inter-depot transfers required."
+
+        # 12. Default Fallback
         else:
             answer_text = "No data available."
 

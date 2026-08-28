@@ -28,15 +28,15 @@ async def get_executive_summary(
     """Returns 2-minute strategic C-suite narrative."""
     summary = ExecutiveSummaryResponse(
         briefing_title="C-Suite Executive Supply Chain Briefing (2026-Q3)",
-        executive_narrative="Overall enterprise supply chain resilience remains STABLE at 81.5% health score. Primary capital exposure ($1.42M) stems from semiconductor lead-time extensions (+4 days) and ocean port congestion at Oakland. Immediate PO approval for depleted MacBook Pro M4 stock is recommended to protect Q3 retail revenue targets.",
+        executive_narrative="Overall enterprise supply chain resilience remains STABLE at 81.5% health score. Primary capital exposure (₹1.42 Cr) stems from semiconductor lead-time extensions (+4 days) and ocean port congestion at Oakland. Immediate PO approval for depleted MacBook Pro M4 stock is recommended to protect Q3 retail revenue targets.",
         top_strategic_risks=[
             "Semiconductor component shortage impacting laptop manufacturing lead times (+4 days).",
-            "Ocean freight customs bottleneck at Oakland Port exposing $450k in delay penalties.",
+            "Ocean freight customs bottleneck at Oakland Port exposing ₹45 Lakh in delay penalties.",
             "Surat warehouse capacity reaching 88% due to slow-moving legacy SKU accumulation."
         ],
-        capital_at_risk=Decimal("1425000.00"),
+        capital_at_risk=Decimal("14250000.00"),
         key_recommendations=[
-            "Authorize $320k Purchase Order for high-demand laptop replenishment.",
+            "Authorize ₹32 Lakh Purchase Order for high-demand laptop replenishment.",
             "Reallocate 20% order volume to backup European component supplier Apex Semi.",
             "Initiate inter-depot stock transfer of 150 units from Surat to Mumbai distribution hub."
         ]

@@ -27,23 +27,23 @@ PRIMARY_WAREHOUSE_CODE = "WH-SUR"
     response_model=PaginationResponse[InventoryItemResponse],
     status_code=status.HTTP_200_OK,
     summary="Get Paginated Inventory Stock List",
-    description="Returns filtered and sorted inventory items for Surat Central Warehouse (WH-SUR).",
+    description="Returns filtered and sorted inventory items across all distribution centers or filtered by warehouse.",
 )
 async def list_inventory(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=500),
     search: Optional[str] = Query(default=None, description="Search by product name, SKU, or category."),
     status_filter: Optional[str] = Query(default=None, alias="status", description="ALL, CRITICAL, LOW_STOCK, OPTIMAL, OVERSTOCK."),
-    warehouse_id: Optional[str] = Query(default=None, description="Filter by warehouse ID."),
+    warehouse_id: Optional[str] = Query(default=None, description="Filter by warehouse ID, code (e.g. WH-SUR), or ALL."),
     sort_by: Optional[str] = Query(default="name", description="name, stockAsc, stockDesc, valueDesc."),
     db: AsyncSession = Depends(get_db),
 ) -> PaginationResponse[InventoryItemResponse]:
-    """Returns paginated inventory stock list for Surat Central Warehouse."""
+    """Returns paginated inventory stock list across all warehouses or filtered by warehouse."""
     try:
         # Sanitize parameters if called directly
         q_search = search if isinstance(search, str) and search.strip() else None
         q_status = status_filter if isinstance(status_filter, str) and status_filter.strip() else None
-        q_warehouse_id = warehouse_id if isinstance(warehouse_id, str) and warehouse_id.strip() else None
+        q_warehouse_id = warehouse_id if isinstance(warehouse_id, str) and warehouse_id.strip() and warehouse_id.strip().upper() != "ALL" else None
         q_sort = sort_by if isinstance(sort_by, str) else "name"
         q_page = page if isinstance(page, int) else 1
         q_limit = limit if isinstance(limit, int) else 10
@@ -56,10 +56,14 @@ async def list_inventory(
         )
 
         if q_warehouse_id:
-            stmt = stmt.where(Inventory.warehouse_id == q_warehouse_id)
-        else:
-            # Default to Surat Central Warehouse (WH-SUR)
-            stmt = stmt.where(Warehouse.warehouse_code == PRIMARY_WAREHOUSE_CODE)
+            # Check if UUID or warehouse code (e.g. WH-SUR, WH-MUM)
+            stmt = stmt.where(
+                or_(
+                    Inventory.warehouse_id == q_warehouse_id,
+                    Warehouse.warehouse_code.ilike(q_warehouse_id),
+                    Warehouse.name.ilike(f"%{q_warehouse_id}%")
+                )
+            )
 
         if q_search:
             q_term = f"%{q_search}%"
@@ -152,7 +156,7 @@ async def list_inventory(
         total_pages = max(1, (total_items + limit - 1) // limit)
         return PaginationResponse(
             success=True,
-            message="Inventory list retrieved for Surat Central Warehouse.",
+            message="Inventory list retrieved successfully.",
             data=items,
             meta=PaginationMeta(page=page, limit=limit, total_items=total_items, total_pages=total_pages),
         )
@@ -165,18 +169,22 @@ async def list_inventory(
     response_model=BaseResponse[List[InventoryItemResponse]],
     status_code=status.HTTP_200_OK,
     summary="Get Low Stock Items",
-    description="Returns items in Surat Warehouse where available quantity is at or below reorder level.",
+    description="Returns items where available quantity is at or below reorder level across warehouses.",
 )
-async def get_low_stock(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[InventoryItemResponse]]:
-    """Returns low stock inventory items for Surat Warehouse."""
+async def get_low_stock(
+    warehouse_id: Optional[str] = Query(default=None, description="Optional warehouse ID/code filter"),
+    db: AsyncSession = Depends(get_db)
+) -> BaseResponse[List[InventoryItemResponse]]:
+    """Returns low stock inventory items."""
     stmt = (
         select(Inventory, Product, Warehouse)
         .join(Product, Inventory.product_id == Product.id)
         .join(Warehouse, Inventory.warehouse_id == Warehouse.id)
-        .where(Warehouse.warehouse_code == PRIMARY_WAREHOUSE_CODE)
         .where(Inventory.available_quantity <= Product.reorder_level)
-        .limit(50)
     )
+    if warehouse_id and warehouse_id.upper() != "ALL":
+        stmt = stmt.where(or_(Inventory.warehouse_id == warehouse_id, Warehouse.warehouse_code.ilike(warehouse_id)))
+    stmt = stmt.limit(50)
     results = (await db.execute(stmt)).all()
 
     items = []
@@ -202,22 +210,31 @@ async def get_low_stock(db: AsyncSession = Depends(get_db)) -> BaseResponse[List
 
 
 @router.get(
-    "/out-of-stock",
+    "/critical",
     response_model=BaseResponse[List[InventoryItemResponse]],
     status_code=status.HTTP_200_OK,
-    summary="Get Out of Stock Items",
-    description="Returns items in Surat Warehouse with zero available quantity.",
+    summary="Get Critical Shortage Items",
+    description="Returns items with zero or critically depleted stock (<50% of reorder level).",
 )
-async def get_out_of_stock(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[InventoryItemResponse]]:
-    """Returns out of stock inventory items for Surat Warehouse."""
+async def get_critical_stock(
+    warehouse_id: Optional[str] = Query(default=None, description="Optional warehouse filter"),
+    db: AsyncSession = Depends(get_db)
+) -> BaseResponse[List[InventoryItemResponse]]:
+    """Returns critical shortage items."""
     stmt = (
         select(Inventory, Product, Warehouse)
         .join(Product, Inventory.product_id == Product.id)
         .join(Warehouse, Inventory.warehouse_id == Warehouse.id)
-        .where(Warehouse.warehouse_code == PRIMARY_WAREHOUSE_CODE)
-        .where(Inventory.available_quantity == 0)
-        .limit(50)
+        .where(
+            or_(
+                Inventory.available_quantity == 0,
+                (Product.reorder_level.isnot(None)) & (Inventory.available_quantity <= (Product.reorder_level / 2))
+            )
+        )
     )
+    if warehouse_id and warehouse_id.upper() != "ALL":
+        stmt = stmt.where(or_(Inventory.warehouse_id == warehouse_id, Warehouse.warehouse_code.ilike(warehouse_id)))
+    stmt = stmt.limit(50)
     results = (await db.execute(stmt)).all()
 
     items = []
@@ -230,35 +247,44 @@ async def get_out_of_stock(db: AsyncSession = Depends(get_db)) -> BaseResponse[L
                 product_id=prod.id,
                 product_name=prod.name,
                 sku=prod.sku,
-                quantity_on_hand=0,
-                reserved_quantity=0,
-                available_quantity=0,
+                quantity_on_hand=inv.quantity_on_hand,
+                reserved_quantity=inv.reserved_quantity,
+                available_quantity=inv.available_quantity,
                 damaged_quantity=inv.damaged_quantity,
-                stock_status="CRITICAL",
-                total_value=Decimal("0.0"),
+                stock_status="CRITICAL" if inv.available_quantity > 0 else "OUT_OF_STOCK",
+                total_value=Decimal(str(inv.available_quantity)) * prod.cost_price,
                 last_updated=inv.last_updated,
             )
         )
-    return BaseResponse(success=True, message="Out of stock items retrieved.", data=items)
+    return BaseResponse(success=True, message="Critical stock items retrieved.", data=items)
 
 
 @router.get(
-    "/dead-stock",
+    "/overstock",
     response_model=BaseResponse[List[InventoryItemResponse]],
     status_code=status.HTTP_200_OK,
-    summary="Get Dead / Overstock Items",
-    description="Returns non-moving or overstocked items in Surat Warehouse.",
+    summary="Get Overstock Items",
+    description="Returns items with excessive inventory (>3,000 units or >3x reorder level) for warehouse rebalancing.",
 )
-async def get_dead_stock(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[InventoryItemResponse]]:
-    """Returns dead stock / non-moving inventory in Surat Warehouse."""
+async def get_overstock(
+    warehouse_id: Optional[str] = Query(default=None, description="Optional warehouse filter"),
+    db: AsyncSession = Depends(get_db)
+) -> BaseResponse[List[InventoryItemResponse]]:
+    """Returns overstock items for spatial rebalancing."""
     stmt = (
         select(Inventory, Product, Warehouse)
         .join(Product, Inventory.product_id == Product.id)
         .join(Warehouse, Inventory.warehouse_id == Warehouse.id)
-        .where(Warehouse.warehouse_code == PRIMARY_WAREHOUSE_CODE)
-        .where(Inventory.available_quantity > 2000)
-        .limit(20)
+        .where(
+            or_(
+                Inventory.available_quantity > 3000,
+                (Product.reorder_level.isnot(None)) & (Inventory.available_quantity > (Product.reorder_level * 3))
+            )
+        )
     )
+    if warehouse_id and warehouse_id.upper() != "ALL":
+        stmt = stmt.where(or_(Inventory.warehouse_id == warehouse_id, Warehouse.warehouse_code.ilike(warehouse_id)))
+    stmt = stmt.limit(50)
     results = (await db.execute(stmt)).all()
 
     items = []
@@ -280,7 +306,7 @@ async def get_dead_stock(db: AsyncSession = Depends(get_db)) -> BaseResponse[Lis
                 last_updated=inv.last_updated,
             )
         )
-    return BaseResponse(success=True, message="Dead stock items retrieved.", data=items)
+    return BaseResponse(success=True, message="Overstock items retrieved.", data=items)
 
 
 @router.get(

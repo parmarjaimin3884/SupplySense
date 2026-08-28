@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Boxes,
@@ -13,39 +13,87 @@ import {
   AlertTriangle,
   Zap,
   Check,
+  RotateCcw,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { MOCK_SKUS } from "@/data/mock-data";
 
+const STORAGE_KEY = "supplysense_reorder_statuses_v1";
+
 export default function ReorderPage() {
-  const [reorders, setReorders] = useState(
-    MOCK_SKUS.filter((s) => s.reorderQuantity > 0).map((s) => ({
+  const [reorders, setReorders] = useState(() => {
+    return MOCK_SKUS.filter((s) => s.reorderQuantity > 0).map((s) => ({
       ...s,
       status: "pending" as "pending" | "approved" | "rejected",
-    }))
-  );
+    }));
+  });
+
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load saved authorization statuses from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed: Record<string, "pending" | "approved" | "rejected"> = JSON.parse(saved);
+        setReorders((prev) =>
+          prev.map((item) => ({
+            ...item,
+            status: parsed[item.id] || item.status,
+          }))
+        );
+      }
+    } catch (e) {
+      console.error("Failed to load saved reorders:", e);
+    } finally {
+      setIsLoaded(true);
+    }
+  }, []);
+
+  // Save changes to localStorage whenever reorders change
+  const persistState = (newReorders: typeof reorders) => {
+    setReorders(newReorders);
+    try {
+      const statusMap = newReorders.reduce((acc, item) => {
+        acc[item.id] = item.status;
+        return acc;
+      }, {} as Record<string, string>);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(statusMap));
+    } catch (e) {
+      console.error("Failed to save reorders to localStorage:", e);
+    }
+  };
 
   const handleApprove = (id: string) => {
-    setReorders((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: "approved" } : r))
-    );
+    const updated = reorders.map((r) => (r.id === id ? { ...r, status: "approved" as const } : r));
+    persistState(updated);
   };
 
   const handleReject = (id: string) => {
-    setReorders((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: "rejected" } : r))
-    );
+    const updated = reorders.map((r) => (r.id === id ? { ...r, status: "rejected" as const } : r));
+    persistState(updated);
   };
 
   const handleBatchApprove = () => {
-    setReorders((prev) =>
-      prev.map((r) => ({ ...r, status: "approved" }))
-    );
+    const updated = reorders.map((r) => ({ ...r, status: "approved" as const }));
+    persistState(updated);
   };
 
-  const pendingTotalCapital = reorders
-    .filter((r) => r.status === "pending")
-    .reduce((acc, r) => acc + r.reorderQuantity * r.unitCost, 0);
+  const handleResetQueue = () => {
+    const reset = MOCK_SKUS.filter((s) => s.reorderQuantity > 0).map((s) => ({
+      ...s,
+      status: "pending" as const,
+    }));
+    persistState(reset);
+  };
+
+  const pendingItems = reorders.filter((r) => r.status === "pending");
+  const approvedItems = reorders.filter((r) => r.status === "approved");
+
+  const pendingTotalCapital = pendingItems.reduce(
+    (acc, r) => acc + r.reorderQuantity * r.unitCost,
+    0
+  );
 
   return (
     <AppShell>
@@ -67,14 +115,28 @@ export default function ReorderPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleBatchApprove}
-              className="h-9 px-4 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              <span>Batch Approve All ({reorders.filter((r) => r.status === "pending").length})</span>
-            </button>
+            {approvedItems.length > 0 && (
+              <button
+                type="button"
+                onClick={handleResetQueue}
+                className="h-9 px-3 rounded-xl border border-[#E5E7EB] bg-white text-[#6B7280] hover:text-[#111827] text-xs font-semibold hover:bg-[#F9FAFB] transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Reset queue for demo testing"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Reset Queue</span>
+              </button>
+            )}
+
+            {pendingItems.length > 0 && (
+              <button
+                type="button"
+                onClick={handleBatchApprove}
+                className="h-9 px-4 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                <span>Batch Approve All ({pendingItems.length})</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -83,9 +145,11 @@ export default function ReorderPage() {
           <div className="p-4 rounded-2xl border border-[#E5E7EB] bg-white shadow-xs">
             <div className="text-xs text-[#6B7280] font-medium mb-1">Total Pending Reorder Capital</div>
             <div className="text-2xl font-bold font-mono text-[#111827]">
-              ${pendingTotalCapital.toLocaleString()}
+              ₹{pendingTotalCapital.toLocaleString('en-IN')}
             </div>
-            <div className="text-[11px] text-[#2563EB] mt-0.5">3 Critical Components Queued</div>
+            <div className="text-[11px] text-[#2563EB] mt-0.5 font-medium">
+              {pendingItems.length} Critical {pendingItems.length === 1 ? "Component" : "Components"} Queued
+            </div>
           </div>
 
           <div className="p-4 rounded-2xl border border-[#E5E7EB] bg-white shadow-xs">
@@ -108,7 +172,7 @@ export default function ReorderPage() {
               key={item.id}
               className={`rounded-2xl border p-5 bg-white transition-all shadow-xs ${
                 item.status === "approved"
-                  ? "border-[#16A34A]/30 bg-[#F0FDF4]/30"
+                  ? "border-[#16A34A]/40 bg-[#F0FDF4]/40"
                   : item.status === "rejected"
                   ? "border-[#E5E7EB] opacity-60 bg-[#FAFAFA]"
                   : "border-[#E5E7EB] hover:border-[#D1D5DB]"
@@ -136,7 +200,7 @@ export default function ReorderPage() {
                   <div className="flex flex-wrap items-center gap-4 text-xs text-[#6B7280] pt-1">
                     <span>Current On Hand: <strong className="font-mono text-[#111827]">{item.onHand.toLocaleString()}</strong> ({item.daysOfSupply}d supply)</span>
                     <span>Monthly Run Rate: <strong className="font-mono text-[#111827]">{item.predictedDemandMonthly.toLocaleString()}</strong></span>
-                    <span>PO Estimated Value: <strong className="font-mono text-[#111827]">${(item.reorderQuantity * item.unitCost).toLocaleString()}</strong></span>
+                    <span>PO Estimated Value: <strong className="font-mono text-[#111827]">₹{(item.reorderQuantity * item.unitCost).toLocaleString('en-IN')}</strong></span>
                   </div>
                 </div>
 
@@ -150,12 +214,12 @@ export default function ReorderPage() {
                   </div>
 
                   {item.status === "approved" ? (
-                    <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#16A34A] text-white text-xs font-bold shadow-xs">
+                    <div className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#16A34A] text-white text-xs font-bold shadow-xs">
                       <Check className="h-4 w-4 stroke-[3]" />
-                      <span>PO-Drafted</span>
+                      <span>PO-Drafted (Saved)</span>
                     </div>
                   ) : item.status === "rejected" ? (
-                    <div className="px-4 py-2 rounded-xl bg-[#F3F4F6] text-[#6B7280] text-xs font-semibold">
+                    <div className="px-4 py-2.5 rounded-xl bg-[#F3F4F6] text-[#6B7280] text-xs font-semibold">
                       Declined
                     </div>
                   ) : (

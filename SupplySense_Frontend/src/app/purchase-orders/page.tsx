@@ -154,7 +154,7 @@ export default function PurchaseOrdersPage() {
                       {po.quantity.toLocaleString()} ea
                     </td>
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-[#111827]">
-                      ${po.totalCost.toLocaleString()}
+                      ₹{po.totalCost.toLocaleString('en-IN')}
                     </td>
                     <td className="py-3.5 px-4 font-mono text-[#4B5563]">
                       {po.expectedDelivery}

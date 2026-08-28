@@ -24,18 +24,15 @@ PRIMARY_WAREHOUSE_CODE = "WH-SUR"
     "",
     response_model=BaseResponse[List[WarehouseResponse]],
     status_code=status.HTTP_200_OK,
-    summary="Get Distribution Hubs List",
-    description="Returns active Surat Central Warehouse (WH-SUR) spatial storage capacity telemetry.",
+    summary="Get All Distribution Hubs",
+    description="Returns all active regional distribution centers and storage capacity telemetry.",
 )
 async def list_warehouses(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[WarehouseResponse]]:
-    """Returns primary Surat Central Warehouse."""
-    stmt = select(Warehouse).where(Warehouse.warehouse_code == PRIMARY_WAREHOUSE_CODE)
+    """Returns all regional warehouse distribution centers."""
+    stmt = select(Warehouse).order_by(Warehouse.name.asc())
     results = (await db.execute(stmt)).scalars().all()
-    if not results:
-        stmt = select(Warehouse).limit(1)
-        results = (await db.execute(stmt)).scalars().all()
     items = [WarehouseResponse.model_validate(w) for w in results]
-    return BaseResponse(success=True, message="Warehouse hubs retrieved.", data=items)
+    return BaseResponse(success=True, message=f"Retrieved {len(items)} regional distribution hubs.", data=items)
 
 
 @router.get(
@@ -43,19 +40,16 @@ async def list_warehouses(db: AsyncSession = Depends(get_db)) -> BaseResponse[Li
     response_model=BaseResponse[List[WarehouseUtilizationResponse]],
     status_code=status.HTTP_200_OK,
     summary="Get Warehouse Utilization % Metrics",
-    description="Returns storage capacity utilization percentage for Surat Central Warehouse.",
+    description="Returns storage capacity utilization percentages for all regional warehouses.",
 )
 async def get_utilization(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[WarehouseUtilizationResponse]]:
-    """Returns storage utilization metrics for Surat Central Warehouse."""
-    stmt = select(Warehouse).where(Warehouse.warehouse_code == PRIMARY_WAREHOUSE_CODE)
+    """Returns storage utilization metrics across all distribution hubs."""
+    stmt = select(Warehouse).order_by(Warehouse.current_utilization.desc())
     warehouses = (await db.execute(stmt)).scalars().all()
-    if not warehouses:
-        stmt = select(Warehouse).limit(1)
-        warehouses = (await db.execute(stmt)).scalars().all()
 
     util_list = []
     for w in warehouses:
-        pct = float(w.current_utilization or 46.89)
+        pct = float(w.current_utilization or 50.0)
         st = "OPTIMAL" if 40 <= pct <= 85 else "NEAR_CAPACITY" if pct > 85 else "UNDERUTILIZED"
         used = int(w.capacity * (pct / 100.0))
         util_list.append(
@@ -69,7 +63,7 @@ async def get_utilization(db: AsyncSession = Depends(get_db)) -> BaseResponse[Li
                 status=st,
             )
         )
-    return BaseResponse(success=True, message="Utilization metrics retrieved.", data=util_list)
+    return BaseResponse(success=True, message="Utilization metrics retrieved across all hubs.", data=util_list)
 
 
 @router.get(
@@ -77,28 +71,28 @@ async def get_utilization(db: AsyncSession = Depends(get_db)) -> BaseResponse[Li
     response_model=BaseResponse[WarehouseCapacityResponse],
     status_code=status.HTTP_200_OK,
     summary="Get Storage Capacity Overview",
-    description="Returns storage capacity distribution for Surat Central Warehouse.",
+    description="Returns total storage capacity distribution across all regional facilities.",
 )
 async def get_capacity(db: AsyncSession = Depends(get_db)) -> BaseResponse[WarehouseCapacityResponse]:
-    """Returns storage capacity summary for Surat Central Warehouse."""
-    stmt = select(Warehouse).where(Warehouse.warehouse_code == PRIMARY_WAREHOUSE_CODE)
+    """Returns total network storage capacity summary across all distribution hubs."""
+    stmt = select(Warehouse)
     warehouses = (await db.execute(stmt)).scalars().all()
-    if not warehouses:
-        stmt = select(Warehouse).limit(1)
-        warehouses = (await db.execute(stmt)).scalars().all()
 
-    total_cap = sum(w.capacity for w in warehouses) or 44398
-    used_cap = sum(int(w.capacity * (float(w.current_utilization or 46.89) / 100.0)) for w in warehouses) or 20818
-    avg_pct = round((used_cap / total_cap) * 100.0, 1) if total_cap > 0 else 46.9
+    total_cap = sum(w.capacity for w in warehouses) or 175171
+    used_cap = sum(int(w.capacity * (float(w.current_utilization or 50.0) / 100.0)) for w in warehouses)
+    avg_pct = round((used_cap / total_cap) * 100.0, 1) if total_cap > 0 else 65.0
+
+    overfilled = sum(1 for w in warehouses if float(w.current_utilization or 0) > 85)
+    underutilized = sum(1 for w in warehouses if float(w.current_utilization or 0) < 50)
 
     capacity_summary = WarehouseCapacityResponse(
         total_network_capacity=total_cap,
         total_used_capacity=used_cap,
         avg_utilization_pct=avg_pct,
-        overfilled_depots_count=0,
-        underutilized_depots_count=0,
+        overfilled_depots_count=overfilled,
+        underutilized_depots_count=underutilized,
     )
-    return BaseResponse(success=True, message="Capacity overview retrieved.", data=capacity_summary)
+    return BaseResponse(success=True, message="Network capacity overview retrieved.", data=capacity_summary)
 
 
 @router.get(

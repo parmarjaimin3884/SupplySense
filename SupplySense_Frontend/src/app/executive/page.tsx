@@ -130,7 +130,7 @@ export default function ExecutiveBriefingPage() {
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-xs space-y-1">
             <div className="text-xs text-[#6B7280] font-semibold">Capital At Risk</div>
             <div className="text-2xl font-bold font-mono text-[#111827]">
-              ${summary?.capital_at_risk ? Number(summary.capital_at_risk).toLocaleString() : "1,420,500"}
+              ₹{summary?.capital_at_risk ? Number(summary.capital_at_risk).toLocaleString('en-IN') : "1,42,50,000"}
             </div>
             <div className="text-[11px] text-[#6B7280]">Total exposed value</div>
           </div>

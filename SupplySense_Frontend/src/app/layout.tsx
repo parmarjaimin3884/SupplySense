@@ -43,8 +43,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${plusJakartaSans.variable} ${geistMono.variable} font-sans antialiased bg-[#F9FAFB] text-[#111827] selection:bg-[#111827] selection:text-white`}
       >
         <ReactQueryProvider>

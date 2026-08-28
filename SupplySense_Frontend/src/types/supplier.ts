@@ -6,16 +6,20 @@
 export interface Supplier {
   id: string;
   company_name: string;
+  gst_number?: string | null;
+  pan?: string | null;
+  address?: string | null;
   city?: string | null;
   country?: string | null;
   contact_person?: string | null;
   email?: string | null;
   phone?: string | null;
   lead_time?: number;
+  moq?: number | null;
   payment_terms?: string | null;
   reliability_score?: number;
   quality_score?: number;
-  risk_rating: "LOW" | "MODERATE" | "HIGH_RISK" | "CRITICAL" | "HIGH";
+  risk_rating: "LOW" | "MODERATE" | "HIGH_RISK" | "CRITICAL" | "HIGH" | "HEALTHY" | "At Risk" | "Under Review";
   average_delay?: number;
 }
 

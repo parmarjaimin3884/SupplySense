@@ -16,6 +16,7 @@ from backend.app.schemas.forecast import DemandForecastResponse, ForecastAccurac
 from backend.app.schemas.risk import AIRiskAlertResponse, RiskSummaryResponse, RiskMatrixPoint
 from backend.app.schemas.executive import ExecutiveSummaryResponse, BoardReportResponse, BusinessHealthResponse
 from backend.app.schemas.settings import UserProfileSchema, UserPreferencesSchema
+from backend.app.schemas.transfer import StockTransferResponse, StockTransferCreateRequest, StockTransferRecommendation
 
 __all__ = [
     "BaseResponse", "PaginationResponse", "ErrorResponse", "PaginationMeta", "ErrorDetail",
@@ -32,4 +33,5 @@ __all__ = [
     "AIRiskAlertResponse", "RiskSummaryResponse", "RiskMatrixPoint",
     "ExecutiveSummaryResponse", "BoardReportResponse", "BusinessHealthResponse",
     "UserProfileSchema", "UserPreferencesSchema",
+    "StockTransferResponse", "StockTransferCreateRequest", "StockTransferRecommendation",
 ]

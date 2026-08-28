@@ -274,6 +274,36 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
             confidence=0.99,
         )
 
+    # K. Order Fulfillment & Multi-Warehouse Routing (e.g. "Which warehouse should fulfill this order?", "Where should I fulfill MacBooks for Pune?")
+    if any(k in q_lower for k in [
+        "which warehouse should fulfill", "where should we fulfill", "best warehouse to fulfill",
+        "which warehouse should ship", "where to ship this order", "fulfill this order",
+        "fulfill an order", "where should i ship", "fulfill order"
+    ]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (fulfillment routing) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent="fulfillment_routing",
+            tool="find_best_fulfillment_warehouse",
+            explanation="Order fulfillment routing across multi-warehouse network.",
+            confidence=0.99,
+        )
+
+    # L. Inter-Depot Stock Transfer & Rebalancing (e.g. "How can we rebalance stock?", "Show transfer recommendations", "Transfer stock between warehouses")
+    if any(k in q_lower for k in [
+        "rebalance stock", "transfer stock", "stock transfer", "rebalance inventory",
+        "inter-depot", "transfer excess", "transfer recommendations", "how to rebalance",
+        "can we transfer", "rebalance between warehouses", "stock rebalancing"
+    ]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (stock rebalancing) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent="stock_rebalancing",
+            tool="recommend_stock_transfers",
+            explanation="Inter-depot stock transfer and network rebalancing recommendations.",
+            confidence=0.99,
+        )
+
     # -----------------------------------------------------------------------
     # 4. RAG KNOWLEDGE QUERY PATTERNS (Pure policy/procedure/SOP questions)
     # -----------------------------------------------------------------------

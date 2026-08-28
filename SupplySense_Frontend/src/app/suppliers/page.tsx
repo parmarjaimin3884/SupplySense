@@ -53,6 +53,9 @@ export default function SuppliersDirectoryPage() {
               <span className="text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20 px-2 py-0.5 rounded-full">
                 {meta?.total_items ?? 0} ACTIVE PARTNERS
               </span>
+              <span className="text-[10px] font-mono font-bold bg-[#F0FDF4] text-[#16A34A] border border-[#16A34A]/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span>⭐ Ranked: Best Reliability First</span>
+              </span>
             </div>
             <p className="text-xs text-[#6B7280] mt-1">
               Real-time supplier performance auditing, lead-time variance tracking, defect rates, and alternate vendor routing.
@@ -106,16 +109,26 @@ export default function SuppliersDirectoryPage() {
             </div>
 
             <div className="flex items-center gap-1.5">
-              {["all", "healthy", "at risk", "under review"].map((st) => (
+              {[
+                { label: "All", value: "all" },
+                { label: "Healthy (Low)", value: "healthy" },
+                { label: "At Risk (High)", value: "at risk" },
+                { label: "Under Review (Medium)", value: "under review" },
+              ].map((st) => (
                 <button
-                  key={st}
+                  key={st.value}
                   type="button"
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${
-                    statusFilter === st ? "bg-[#111827] text-white shadow-2xs" : "bg-white border border-[#E5E7EB] text-[#4B5563] hover:text-[#111827]"
+                  onClick={() => {
+                    setStatusFilter(st.value);
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    statusFilter === st.value
+                      ? "bg-[#111827] text-white shadow-2xs"
+                      : "bg-white border border-[#E5E7EB] text-[#4B5563] hover:text-[#111827]"
                   }`}
                 >
-                  {st}
+                  {st.label}
                 </button>
               ))}
             </div>
@@ -128,7 +141,7 @@ export default function SuppliersDirectoryPage() {
                   <th className="py-3 px-4">SUPPLIER</th>
                   <th className="py-3 px-4 text-right">RISK SCORE</th>
                   <th className="py-3 px-4 text-right">ON-TIME DELIVERY</th>
-                  <th className="py-3 px-4 text-right">DEFECT RATE</th>
+                  <th className="py-3 px-4 text-right">QUALITY SCORE</th>
                   <th className="py-3 px-4">LEAD TIME VARIANCE</th>
                   <th className="py-3 px-4">RECOMMENDED ALTERNATE</th>
                   <th className="py-3 px-4">STATUS</th>
@@ -175,8 +188,10 @@ export default function SuppliersDirectoryPage() {
                           {sup.reliability_score != null ? `${Number(sup.reliability_score).toFixed(1)}%` : "95.0%"}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono text-[#4B5563]">
-                        {sup.quality_score != null ? `${Number(sup.quality_score).toFixed(1)}%` : "98.5%"}
+                      <td className="py-3.5 px-4 text-right font-mono font-bold">
+                        <span className={(Number(sup.quality_score) || 98) < 85 ? "text-[#DC2626]" : "text-[#16A34A]"}>
+                          {sup.quality_score != null ? `${Number(sup.quality_score).toFixed(1)}%` : "98.5%"}
+                        </span>
                       </td>
                       <td className="py-3.5 px-4 font-mono text-[#4B5563]">
                         {sup.average_delay ? `+${sup.average_delay} days` : "On schedule"}

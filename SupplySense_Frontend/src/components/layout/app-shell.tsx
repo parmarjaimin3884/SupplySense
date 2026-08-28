@@ -144,8 +144,9 @@ export function AppShell({ children }: AppShellProps) {
               <span className="text-base font-extrabold tracking-tight text-[#111827]">
                 SupplySense
               </span>
-              <span className="hidden sm:inline-block text-[10px] font-mono font-bold bg-[#F3F4F6] text-[#4B5563] px-2 py-0.5 rounded border border-[#E5E7EB]">
-                SURAT CENTRAL (WH-SUR)
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-full border border-[#2563EB]/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB] animate-pulse" />
+                <span>MULTI-DEPOT NETWORK (5 HUBS)</span>
               </span>
             </div>
           </Link>

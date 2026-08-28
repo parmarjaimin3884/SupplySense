@@ -31,6 +31,7 @@ import { useLowStock } from "@/hooks/useInventory";
 import { useHighRiskSuppliers } from "@/hooks/useSuppliers";
 import { useDelayedShipments } from "@/hooks/useShipments";
 import { useCriticalRisks, useRiskSummary } from "@/hooks/useRisks";
+import { useWarehouseUtilization, useWarehouseCapacity } from "@/hooks/useWarehouses";
 import { KPISkeleton, CardSkeleton } from "@/components/ui/loading-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 
@@ -46,6 +47,8 @@ export default function PrimaryIntelligenceDashboard() {
   const { data: highRiskSuppliers } = useHighRiskSuppliers();
   const { data: delayedShipments } = useDelayedShipments();
   const { data: criticalRisks } = useCriticalRisks();
+  const { data: warehouseUtils, isLoading: isWarehouseLoading } = useWarehouseUtilization();
+  const { data: networkCapacity } = useWarehouseCapacity();
 
   const handleDraftPO = (skuId: string) => {
     setDraftedPOs((prev) => [...prev, skuId]);
@@ -151,11 +154,11 @@ export default function PrimaryIntelligenceDashboard() {
               <span className="font-semibold">Monitored Inventory</span>
               <Boxes className="h-4 w-4 text-[#9CA3AF]" />
             </div>
-            <div className="text-2xl font-bold font-mono text-[#111827]">${summary ? Number(summary.total_inventory_value).toLocaleString() : '1,420,500'}</div>
+            <div className="text-2xl font-bold font-mono text-[#111827]">₹{summary ? Number(summary.total_inventory_value).toLocaleString('en-IN') : '14,250,890.50'}</div>
             <div className="text-[11px] text-[#16A34A] font-semibold flex items-center">
               <TrendingUp className="h-3 w-3 mr-0.5" /> 5 core categories active
             </div>
-            <div className="text-[10px] text-[#6B7280]">1,420 total active units</div>
+            <div className="text-[10px] text-[#6B7280]">2,500 total active units across 5 hubs</div>
           </div>
 
           {/* Open Purchase Orders */}
@@ -164,11 +167,11 @@ export default function PrimaryIntelligenceDashboard() {
               <span className="font-semibold">Active POs in Pipeline</span>
               <Truck className="h-4 w-4 text-[#9CA3AF]" />
             </div>
-            <div className="text-2xl font-bold font-mono text-[#111827]">{summary?.open_purchase_orders_count ?? 3} Orders</div>
+            <div className="text-2xl font-bold font-mono text-[#111827]">{summary?.open_purchase_orders_count ?? 12} Orders</div>
             <div className="text-[11px] text-[#D97706] font-semibold flex items-center">
               <AlertTriangle className="h-3 w-3 mr-0.5" /> 1 shipment with lead-time drift
             </div>
-            <div className="text-[10px] text-[#6B7280]">$371,760 committed capital</div>
+            <div className="text-[10px] text-[#6B7280]">₹3,71,760 committed capital</div>
           </div>
         </section>
 
@@ -329,14 +332,37 @@ export default function PrimaryIntelligenceDashboard() {
             </div>
 
             <div className="space-y-3">
-              {(lowStockItems || []).slice(0, 2).map((sku) => (
+              {(lowStockItems && lowStockItems.length > 0 ? lowStockItems : [
+                {
+                  id: "sku-mbp16",
+                  sku: "SKU-MBP16",
+                  product_name: "MacBook Pro 16\" (M3 Max)",
+                  stock_status: "CRITICAL",
+                  quantity_on_hand: 12,
+                  available_quantity: 8,
+                  reserved_quantity: 4,
+                },
+                {
+                  id: "sku-nv-a100",
+                  sku: "SKU-NV-A100",
+                  product_name: "Enterprise Tensor Core GPU A100",
+                  stock_status: "LOW_STOCK",
+                  quantity_on_hand: 6,
+                  available_quantity: 5,
+                  reserved_quantity: 1,
+                },
+              ]).slice(0, 2).map((sku) => (
                 <div key={sku.id} className="p-3.5 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <div>
                       <span className="font-mono font-bold text-[#2563EB]">{sku.sku || sku.id}</span>
                       <span className="ml-2 font-semibold text-[#111827]">{sku.product_name || "SKU Item"}</span>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#FEF2F2] text-[#DC2626]">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                      sku.stock_status === "CRITICAL"
+                        ? "bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20"
+                        : "bg-[#FFFBEB] text-[#D97706] border border-[#D97706]/20"
+                    }`}>
                       {sku.stock_status}
                     </span>
                   </div>
@@ -350,10 +376,10 @@ export default function PrimaryIntelligenceDashboard() {
                       Status: <strong className="text-[#111827]">{sku.stock_status}</strong>
                     </span>
                     <Link
-                      href={`/inventory`}
+                      href="/inventory/reorder"
                       className="px-2.5 py-1 rounded bg-[#111827] text-white text-[11px] font-semibold hover:bg-black transition-colors"
                     >
-                      View in Inventory
+                      Reorder SKU
                     </Link>
                   </div>
                 </div>
@@ -425,7 +451,7 @@ export default function PrimaryIntelligenceDashboard() {
                   Consistently delivering ahead of schedule. Zero defect non-conformances across last 12 PO batches.
                 </p>
                 <div className="pt-2 border-t border-[#E5E7EB] flex items-center justify-between text-xs">
-                  <span className="text-[#6B7280]">Active Spend: <strong className="text-[#111827]">$340,000</strong></span>
+                  <span className="text-[#6B7280]">Active Spend: <strong className="text-[#111827]">₹3,40,000</strong></span>
                   <Link href="/suppliers/sup-nordic" className="font-semibold text-[#2563EB] hover:underline">
                     View Profile →
                   </Link>
@@ -434,6 +460,88 @@ export default function PrimaryIntelligenceDashboard() {
             </div>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* WIDGET: MULTI-WAREHOUSE NETWORK CAPACITY & TELEMETRICS                    */}
+        {/* ========================================================================= */}
+        <section className="rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E5E7EB] pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Boxes className="h-4 w-4 text-[#2563EB]" />
+                <h2 className="text-base font-bold text-[#111827]">Multi-Depot Distribution Network</h2>
+                <span className="text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20 px-2 py-0.5 rounded-full">
+                  {warehouseUtils?.length ?? 5} REGIONAL HUBS
+                </span>
+              </div>
+              <p className="text-xs text-[#6B7280] mt-0.5">
+                Live spatial capacity utilization across regional fulfillment hubs (Total Network: {networkCapacity?.total_network_capacity?.toLocaleString() ?? "175,171"} units, Avg Utilization: {networkCapacity?.avg_utilization_pct ?? "65.0"}%).
+              </p>
+            </div>
+            <Link href="/inventory" className="text-xs font-semibold text-[#2563EB] hover:underline flex items-center gap-1 shrink-0">
+              <span>View All Inventory</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            {(warehouseUtils || [
+              { warehouse_id: "1", name: "Ahmedabad Hub", warehouse_code: "WH-AHM", capacity: 27467, used_units: 11192, utilization_percentage: 40.75, status: "OPTIMAL" as const },
+              { warehouse_id: "2", name: "Mumbai Hub", warehouse_code: "WH-MUM", capacity: 33173, used_units: 29504, utilization_percentage: 88.94, status: "NEAR_CAPACITY" as const },
+              { warehouse_id: "3", name: "Delhi Depot", warehouse_code: "WH-DEL", capacity: 46401, used_units: 41788, utilization_percentage: 90.06, status: "NEAR_CAPACITY" as const },
+              { warehouse_id: "4", name: "Surat Central", warehouse_code: "WH-SUR", capacity: 44398, used_units: 20818, utilization_percentage: 46.89, status: "OPTIMAL" as const },
+              { warehouse_id: "5", name: "Bangalore Hub", warehouse_code: "WH-BAN", capacity: 23732, used_units: 15126, utilization_percentage: 63.74, status: "OPTIMAL" as const },
+            ]).map((wh) => {
+              const util = Number(wh.utilization_percentage) || 50;
+              const isHigh = util > 85;
+              const isOptimal = util >= 40 && util <= 85;
+
+              return (
+                <div
+                  key={wh.warehouse_id}
+                  className={`p-3.5 rounded-xl border transition-all ${
+                    isHigh
+                      ? "border-[#DC2626]/25 bg-[#FEF2F2]/10"
+                      : isOptimal
+                      ? "border-[#E5E7EB] bg-[#FAFAFA]"
+                      : "border-[#F59E0B]/20 bg-[#FFFBEB]/10"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-mono font-bold text-[#2563EB] text-[11px]">{wh.warehouse_code}</span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                        isHigh
+                          ? "bg-[#FEF2F2] text-[#DC2626]"
+                          : isOptimal
+                          ? "bg-[#F0FDF4] text-[#16A34A]"
+                          : "bg-[#FFFBEB] text-[#D97706]"
+                      }`}
+                    >
+                      {util.toFixed(1)}%
+                    </span>
+                  </div>
+
+                  <div className="font-bold text-xs text-[#111827] mt-1 truncate">{wh.name}</div>
+
+                  <div className="w-full bg-[#E5E7EB] rounded-full h-1.5 mt-2 overflow-hidden">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${
+                        isHigh ? "bg-[#DC2626]" : isOptimal ? "bg-[#16A34A]" : "bg-[#F59E0B]"
+                      }`}
+                      style={{ width: `${Math.min(100, util)}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-[#6B7280] mt-2 pt-2 border-t border-[#E5E7EB]/60">
+                    <span>Used: {wh.used_units?.toLocaleString()}</span>
+                    <span>Cap: {wh.capacity?.toLocaleString()}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* ========================================================================= */}
         {/* WIDGET 5: FORECAST ANOMALIES & SURGE INTELLIGENCE                         */}
