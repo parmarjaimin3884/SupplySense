@@ -35,3 +35,32 @@ class RiskSummaryResponse(BaseModel):
     risk_level: str = Field(..., description="LOW, MODERATE, HIGH, SEVERE.")
     critical_threats_count: int = Field(..., description="Count of critical severity risks.")
     matrix_points: List[RiskMatrixPoint] = Field(default_factory=list, description="3x3 threat matrix points.")
+
+
+class DemandAnomalyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    product_id: str = Field(..., description="Product ID.")
+    product_name: str = Field(..., description="Product name.")
+    sku: str = Field(..., description="SKU code.")
+    warehouse_id: str = Field(..., description="Warehouse ID.")
+    warehouse_name: str = Field(..., description="Warehouse name.")
+    warehouse_code: str = Field(..., description="Warehouse code.")
+    current_daily_sales: float = Field(..., description="Observed current daily sales consumption rate.")
+    historical_mean: float = Field(..., description="30-day historical mean daily consumption rate (mu).")
+    historical_std_dev: float = Field(..., description="Consumption standard deviation (sigma).")
+    z_score: float = Field(..., description="Calculated statistical Z-score = (x - mu) / sigma.")
+    spike_percentage: float = Field(..., description="Percentage surge above historical baseline.")
+    available_quantity: int = Field(..., description="Available inventory count.")
+    stockout_days_remaining: float = Field(..., description="Estimated days until total stockout at current surge rate.")
+    recommended_buffer_increase: int = Field(..., description="Recommended safety buffer expansion in units.")
+    severity: str = Field(default="HIGH", description="CRITICAL if Z >= 3.0 else HIGH.")
+    anomaly_reason: str = Field(..., description="Statistical explanation of the consumption surge.")
+
+
+class BufferAdjustmentRequest(BaseModel):
+    product_id: str = Field(..., description="Product ID.")
+    warehouse_id: str = Field(..., description="Warehouse ID.")
+    additional_buffer_units: int = Field(..., ge=1, description="Number of additional safety buffer units to allocate.")
+    reason: Optional[str] = Field(default=None, description="Reason for buffer expansion.")
+

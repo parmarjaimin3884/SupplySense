@@ -304,6 +304,36 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
             confidence=0.99,
         )
 
+    # M. Alternate / Backup Supplier Recommendation (e.g. "Who is the alternate supplier for ABC?", "Backup supplier for laptops", "Recommend an alternate vendor")
+    if any(k in q_lower for k in [
+        "alternate supplier", "backup supplier", "alternative supplier", "backup vendor",
+        "alternate vendor", "alternative vendor", "replacement supplier", "secondary supplier",
+        "switch supplier", "backup for", "find backup"
+    ]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (alternate supplier) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent="alternate_supplier",
+            tool="get_alternate_suppliers",
+            explanation="Alternate backup supplier recommendation and vendor ranking.",
+            confidence=0.99,
+        )
+
+    # N. Demand Spike & Statistical Anomaly Detector (e.g. "Show demand anomalies", "Z-score >= 2.5", "Are there any demand spikes?", "Show consumption surges")
+    if any(k in q_lower for k in [
+        "demand anomaly", "demand anomalies", "demand spike", "demand surges",
+        "consumption spike", "z-score", "statistical anomaly", "demand surge",
+        "spike in demand", "surge in demand", "high demand spike"
+    ]):
+        logger.info(f"Deterministic router matched DIRECT_TOOL (demand anomaly) for query: '{q_clean}'")
+        return RouterDecision(
+            query_type=ExecutionMode.DIRECT_TOOL,
+            intent="demand_anomaly",
+            tool="detect_demand_anomalies",
+            explanation="Statistical demand anomaly detection with Z-score >= 2.5 threshold.",
+            confidence=0.99,
+        )
+
     # -----------------------------------------------------------------------
     # 4. RAG KNOWLEDGE QUERY PATTERNS (Pure policy/procedure/SOP questions)
     # -----------------------------------------------------------------------

@@ -4,7 +4,7 @@
 
 import apiClient from "@/lib/api/client";
 import type { BaseResponse, PaginationResponse } from "@/types/common";
-import type { Supplier, SupplierPerformance, SupplierScorecard, SupplierListParams } from "@/types/supplier";
+import type { Supplier, SupplierPerformance, SupplierScorecard, SupplierListParams, AlternateSupplierRecommendation, SupplierReallocateRequest } from "@/types/supplier";
 
 export const supplierApi = {
   getList: async (params?: SupplierListParams): Promise<PaginationResponse<Supplier>> => {
@@ -31,4 +31,15 @@ export const supplierApi = {
     const response = await apiClient.get<BaseResponse<SupplierScorecard[]>>("/suppliers/scorecards");
     return response.data.data;
   },
+
+  getAlternates: async (supplierId: string): Promise<AlternateSupplierRecommendation[]> => {
+    const response = await apiClient.get<BaseResponse<AlternateSupplierRecommendation[]>>(`/suppliers/${supplierId}/alternates`);
+    return response.data.data;
+  },
+
+  reallocate: async (payload: SupplierReallocateRequest): Promise<any> => {
+    const response = await apiClient.post<BaseResponse<any>>("/suppliers/reallocate", payload);
+    return response.data.data;
+  },
 };
+

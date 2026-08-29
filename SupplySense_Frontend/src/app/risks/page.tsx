@@ -108,6 +108,84 @@ export default function RiskCommandCenterPage() {
           </div>
         </div>
 
+        {/* Risk Domain Sub-Radar Quick Navigation */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Link
+            href="/risks/demand"
+            className="p-4 rounded-2xl border border-[#DC2626]/25 bg-gradient-to-br from-[#FEF2F2]/80 via-white to-[#FFFBEB]/40 shadow-2xs hover:border-[#DC2626]/50 transition-all group flex flex-col justify-between"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-bold text-[#DC2626]">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="h-4 w-4 text-[#DC2626]" />
+                  <span>Demand Spike Radar</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#DC2626] text-white px-2 py-0.2 rounded">
+                  UNUSUAL SALES SURGE
+                </span>
+              </div>
+              <p className="text-xs text-[#374151] pt-1">
+                Early warning system for sudden sales spikes, stockout time horizon analysis, and safety stock expansion.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-[#DC2626]/10 flex items-center justify-between text-xs font-semibold text-[#DC2626]">
+              <span>Open Demand Radar</span>
+              <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          <Link
+            href="/risks/suppliers"
+            className="p-4 rounded-2xl border border-[#D97706]/25 bg-gradient-to-br from-[#FFFBEB]/80 via-white to-[#F8FAFC] shadow-2xs hover:border-[#D97706]/50 transition-all group flex flex-col justify-between"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-bold text-[#D97706]">
+                <div className="flex items-center gap-1.5">
+                  <ShoppingBag className="h-4 w-4 text-[#D97706]" />
+                  <span>Supplier Risk Radar</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#D97706] text-white px-2 py-0.2 rounded">
+                  SLA DRIFT
+                </span>
+              </div>
+              <p className="text-xs text-[#374151] pt-1">
+                Vendor SLA compliance tracking, lead-time variance auditing, defect rates, and backup vendor volume reallocations.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-[#D97706]/10 flex items-center justify-between text-xs font-semibold text-[#D97706]">
+              <span>Open Supplier Radar</span>
+              <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          <Link
+            href="/risks/logistics"
+            className="p-4 rounded-2xl border border-[#2563EB]/25 bg-gradient-to-br from-[#EFF6FF]/80 via-white to-[#F0FDF4]/40 shadow-2xs hover:border-[#2563EB]/50 transition-all group flex flex-col justify-between"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs font-bold text-[#2563EB]">
+                <div className="flex items-center gap-1.5">
+                  <Truck className="h-4 w-4 text-[#2563EB]" />
+                  <span>Logistics & Shipment Radar</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-[#2563EB] text-white px-2 py-0.2 rounded">
+                  PORT DELAYS
+                </span>
+              </div>
+              <p className="text-xs text-[#374151] pt-1">
+                Carrier SLA tracking, port congestion alerts, in-transit shipment telemetry, and express freight re-routing.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-[#2563EB]/10 flex items-center justify-between text-xs font-semibold text-[#2563EB]">
+              <span>Open Logistics Radar</span>
+              <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+        </div>
+
         {/* Risk Items Ledger */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white overflow-hidden shadow-xs space-y-4 p-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5E7EB] pb-4">

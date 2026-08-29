@@ -220,3 +220,129 @@ async def get_po_by_id(id: str, db: AsyncSession = Depends(get_db)) -> BaseRespo
         items=line_items
     )
     return BaseResponse(success=True, message="Purchase order detail retrieved.", data=detail)
+
+
+from backend.app.schemas.purchase_order import CreatePOInput
+
+@router.post(
+    "",
+    response_model=BaseResponse[PurchaseOrderDetailResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Create New Purchase Order (Draft / Pending)",
+    description="Creates a new Purchase Order in database with line items.",
+)
+async def create_purchase_order(
+    payload: CreatePOInput,
+    db: AsyncSession = Depends(get_db)
+) -> BaseResponse[PurchaseOrderDetailResponse]:
+    """Creates a new Purchase Order."""
+    import uuid
+
+    supplier_stmt = select(Supplier).where(Supplier.id == payload.supplier_id)
+    supplier = (await db.execute(supplier_stmt)).scalar_one_or_none()
+
+    warehouse_stmt = select(Warehouse).where(Warehouse.id == payload.warehouse_id)
+    warehouse = (await db.execute(warehouse_stmt)).scalar_one_or_none()
+
+    s_name = supplier.company_name if supplier else "Selected Supplier"
+    w_name = warehouse.name if warehouse else "Destination Warehouse"
+
+    po_id = f"po-{uuid.uuid4().hex[:8]}"
+    today = date.today()
+    deliv_date = payload.expected_delivery_date or (today + timedelta(days=7))
+
+    total_val = Decimal("0.00")
+    created_items = []
+
+    for item in payload.items:
+        prod_stmt = select(Product).where(Product.id == item.product_id)
+        prod = (await db.execute(prod_stmt)).scalar_one_or_none()
+        p_name = prod.name if prod else "Product"
+        p_sku = prod.sku if prod else "SKU-GEN"
+        u_price = item.unit_price or (prod.cost_price if prod else Decimal("500.00"))
+
+        tot_price = u_price * item.quantity
+        total_val += tot_price
+
+        item_id = f"poi-{uuid.uuid4().hex[:8]}"
+        new_item = PurchaseOrderItem(
+            id=item_id,
+            purchase_order_id=po_id,
+            product_id=item.product_id,
+            quantity=item.quantity,
+            unit_price=u_price,
+            total_price=tot_price,
+        )
+        db.add(new_item)
+        created_items.append(
+            PurchaseOrderItemSchema(
+                id=item_id,
+                product_id=item.product_id,
+                product_name=p_name,
+                sku=p_sku,
+                quantity=item.quantity,
+                unit_price=u_price,
+                total_price=tot_price,
+            )
+        )
+
+    new_po = PurchaseOrder(
+        id=po_id,
+        supplier_id=payload.supplier_id,
+        warehouse_id=payload.warehouse_id,
+        order_date=today,
+        expected_delivery_date=deliv_date,
+        status="Pending Approval",
+        priority=payload.priority or "Normal",
+        total_amount=total_val,
+    )
+    db.add(new_po)
+    await db.commit()
+
+    detail = PurchaseOrderDetailResponse(
+        id=po_id,
+        supplier_id=payload.supplier_id,
+        supplier_name=s_name,
+        warehouse_id=payload.warehouse_id,
+        warehouse_name=w_name,
+        order_date=today,
+        expected_delivery_date=deliv_date,
+        status="Pending Approval",
+        priority=payload.priority or "Normal",
+        approved_by=None,
+        total_amount=total_val,
+        items=created_items,
+    )
+    return BaseResponse(
+        success=True,
+        message=f"Purchase Order '{po_id}' created successfully for {s_name}.",
+        data=detail
+    )
+
+
+@router.post(
+    "/{id}/approve",
+    response_model=BaseResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Approve Purchase Order",
+    description="Approves a draft or pending Purchase Order for vendor fulfillment.",
+)
+async def approve_purchase_order(
+    id: str,
+    db: AsyncSession = Depends(get_db)
+) -> BaseResponse[dict]:
+    """Approves PO."""
+    po_stmt = select(PurchaseOrder).where(PurchaseOrder.id == id)
+    po = (await db.execute(po_stmt)).scalar_one_or_none()
+
+    if po:
+        po.status = "Approved"
+        po.approved_by = "Supply Chain Manager"
+        await db.commit()
+
+    return BaseResponse(
+        success=True,
+        message=f"Purchase Order '{id}' approved.",
+        data={"po_id": id, "status": "Approved", "approved_by": "Supply Chain Manager"}
+    )
+

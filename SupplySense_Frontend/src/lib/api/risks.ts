@@ -4,7 +4,7 @@
 
 import apiClient from "@/lib/api/client";
 import type { BaseResponse } from "@/types/common";
-import type { RiskAlert, RiskSummary } from "@/types/risk";
+import type { RiskAlert, RiskSummary, DemandAnomaly, BufferAdjustmentRequest } from "@/types/risk";
 
 export const riskApi = {
   getAlerts: async (): Promise<RiskAlert[]> => {
@@ -21,4 +21,15 @@ export const riskApi = {
     const response = await apiClient.get<BaseResponse<RiskSummary>>("/risks/summary");
     return response.data.data;
   },
+
+  getAnomalies: async (): Promise<DemandAnomaly[]> => {
+    const response = await apiClient.get<BaseResponse<DemandAnomaly[]>>("/risks/anomalies");
+    return response.data.data;
+  },
+
+  adjustBuffer: async (payload: BufferAdjustmentRequest): Promise<any> => {
+    const response = await apiClient.post<BaseResponse<any>>("/risks/anomalies/adjust-buffer", payload);
+    return response.data.data;
+  },
 };
+

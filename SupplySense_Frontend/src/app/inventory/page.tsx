@@ -169,10 +169,10 @@ export default function InventoryPage() {
                   <h3 className="text-sm font-bold text-[#111827]">{item.product_name || "SKU Item"}</h3>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-[#4B5563] pt-1">
-                    <div>On Hand: <strong className="text-[#111827] block font-mono">{item.quantity_on_hand} ea</strong></div>
-                    <div>Available: <strong className="text-[#111827] block font-mono">{item.available_quantity} ea</strong></div>
-                    <div>Reserved: <strong className="text-[#111827] block font-mono">{item.reserved_quantity} ea</strong></div>
-                    <div>Damaged: <strong className="text-[#111827] block font-mono">{item.damaged_quantity} ea</strong></div>
+                    <div>On Hand: <strong className="text-[#111827] block font-mono">{item.quantity_on_hand} Units</strong></div>
+                    <div>Available: <strong className="text-[#111827] block font-mono">{item.available_quantity} Units</strong></div>
+                    <div>Reserved: <strong className="text-[#111827] block font-mono">{item.reserved_quantity} Units</strong></div>
+                    <div>Damaged: <strong className="text-[#111827] block font-mono">{item.damaged_quantity} Units</strong></div>
                   </div>
 
                   <div className="p-2.5 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB] text-xs text-[#374151] flex items-center justify-between">
@@ -433,9 +433,9 @@ export default function InventoryPage() {
                 <tr className="border-b border-[#E5E7EB] text-[#6B7280] font-semibold bg-[#FAFAFA]">
                   <th className="py-3 px-4">SKU</th>
                   <th className="py-3 px-4">PRODUCT</th>
-                  <th className="py-3 px-4 text-right">ON HAND</th>
-                  <th className="py-3 px-4 text-right">AVAILABLE</th>
-                  <th className="py-3 px-4 text-right">RESERVED</th>
+                  <th className="py-3 px-4 text-right">ON HAND (Units)</th>
+                  <th className="py-3 px-4 text-right">AVAILABLE (Units)</th>
+                  <th className="py-3 px-4 text-right">RESERVED (Units)</th>
                   <th className="py-3 px-4">DEPOT</th>
                   <th className="py-3 px-4">STATUS</th>
                   <th className="py-3 px-4 text-right">ACTION</th>
@@ -475,13 +475,13 @@ export default function InventoryPage() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold">
-                        {item.quantity_on_hand.toLocaleString()} ea
+                        {item.quantity_on_hand.toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-[#16A34A] font-bold">
-                        {item.available_quantity.toLocaleString()} ea
+                        {item.available_quantity.toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-[#6B7280]">
-                        {item.reserved_quantity.toLocaleString()} ea
+                        {item.reserved_quantity.toLocaleString()}
                       </td>
                       <td className="py-3 px-4 font-mono text-[#4B5563]">
                         {item.warehouse_name || item.warehouse_id}

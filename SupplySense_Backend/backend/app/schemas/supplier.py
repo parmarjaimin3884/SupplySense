@@ -49,3 +49,29 @@ class SupplierScorecardResponse(BaseModel):
     quality_defect_rate: float = Field(..., description="Defect rate %.")
     lead_time_compliance: float = Field(..., description="Lead time SLA adherence %.")
     active_po_count: int = Field(..., description="Count of open purchase orders.")
+
+
+class AlternateSupplierRecommendation(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    primary_supplier_id: str = Field(..., description="Primary supplier ID.")
+    primary_supplier_name: str = Field(..., description="Primary supplier name.")
+    alternate_supplier_id: str = Field(..., description="Alternate backup supplier ID.")
+    alternate_supplier_name: str = Field(..., description="Alternate backup supplier company name.")
+    city: Optional[str] = Field(default=None, description="City.")
+    country: Optional[str] = Field(default=None, description="Country.")
+    lead_time: int = Field(default=3, description="Lead time in days.")
+    reliability_score: float = Field(..., description="Reliability score (0-100).")
+    quality_score: float = Field(..., description="Quality score (0-100).")
+    risk_rating: str = Field(default="LOW", description="Risk status rating.")
+    score_improvement: float = Field(default=0.0, description="Score gain over primary supplier.")
+    matched_categories: List[str] = Field(default_factory=list, description="Shared product categories.")
+    recommendation_reason: str = Field(..., description="Why this backup vendor is recommended.")
+
+
+class SupplierReallocateRequest(BaseModel):
+    primary_supplier_id: str = Field(..., description="Primary supplier ID.")
+    alternate_supplier_id: str = Field(..., description="Alternate supplier ID.")
+    reallocation_percentage: int = Field(default=100, ge=1, le=100, description="Percentage of PO volume to shift.")
+    reason: Optional[str] = Field(default=None, description="Reason for vendor reallocation.")
+

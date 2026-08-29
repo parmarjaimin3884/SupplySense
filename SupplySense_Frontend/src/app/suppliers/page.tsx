@@ -14,7 +14,9 @@ import {
   ShoppingBag,
   Sparkles,
   Truck,
+  Zap,
 } from "lucide-react";
+import { useEffect } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useSupplierList } from "@/hooks/useSuppliers";
 import { Pagination } from "@/components/ui/pagination";
@@ -27,7 +29,18 @@ export default function SuppliersDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [reallocatedCount, setReallocatedCount] = useState<number>(0);
   const limit = 10;
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("supplysense_reallocated_vendors");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setReallocatedCount(parsed.length);
+      }
+    } catch {}
+  }, []);
 
   // API Hook — server-side search and risk filter
   const { data: supplierData, isLoading, error, refetch } = useSupplierList({
@@ -93,6 +106,46 @@ export default function SuppliersDirectoryPage() {
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
+
+        {/* Active Sourcing Volume Reallocations Widget */}
+        {reallocatedCount > 0 && (
+          <div className="rounded-2xl border border-[#059669]/25 bg-gradient-to-br from-[#F0FDF4]/80 via-white to-[#EFF6FF]/60 p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-[#059669]/15 pb-2.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#059669]">
+                <Zap className="h-4 w-4 text-[#059669]" />
+                <span>ACTIVE VENDOR VOLUME REALLOCATIONS ({reallocatedCount} ACTIVE)</span>
+              </div>
+              <span className="text-[10px] font-mono font-bold bg-[#059669] text-white px-2 py-0.5 rounded">
+                DUAL-SOURCING ACTIVE
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white border border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-[#DC2626]">ABC Electronics Corp (Primary Vendor)</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-[#059669]" />
+                  <span className="font-bold text-[#059669]">Kyoto Micro Tech Pvt Ltd (Backup Vendor)</span>
+                </div>
+                <p className="text-[11px] text-[#4B5563]">
+                  Shifted 100% PO volume allocation. Improved delivery SLA from <strong>82.0% ➔ 97.8% (+15.8% Gain)</strong> with lead time cut from 14d ➔ 3d.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-[#F0FDF4] text-[#059669] border border-[#059669]/20 flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> REALLOCATION COMPLETED
+                </span>
+                <Link
+                  href="/suppliers/sup-abc"
+                  className="text-xs font-semibold text-[#2563EB] hover:underline"
+                >
+                  View Details
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Suppliers Table */}
         <div className="rounded-2xl border border-[#E5E7EB] bg-white overflow-hidden shadow-xs">

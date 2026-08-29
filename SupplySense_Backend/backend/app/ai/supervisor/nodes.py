@@ -709,7 +709,56 @@ async def direct_tool_node(state: SupervisorState) -> dict:
             else:
                 answer_text = "All regional warehouses currently maintain balanced safety buffers. No critical inter-depot transfers required."
 
-        # 12. Default Fallback
+        # 12. Alternate Supplier Recommendation Engine
+        elif target_tool in ["get_alternate_suppliers", "alternate_supplier"] or state.get("intent") == "alternate_supplier":
+            supp_name = params.get("supplier") or params.get("company_name") or question
+            alt_res = await supplier.get_alternate_suppliers(supplier_name_or_id=supp_name)
+            raw_data = alt_res
+            if alt_res.get("success") and alt_res.get("data") and alt_res["data"].get("alternates"):
+                d = alt_res["data"]
+                alts = d["alternates"]
+                lines = []
+                for idx, a in enumerate(alts, 1):
+                    lines.append(
+                        f"**{idx}. {a['alternate_supplier_name']}** ({a['city']}, {a['country']})\n"
+                        f"   • **Reliability Rating:** {a['reliability_score']:.1f}% (+{a['score_improvement']:.1f}% improvement)\n"
+                        f"   • **Quality SLA:** {a['quality_score']:.1f}% | **Lead Time:** {a['lead_time_days']} days\n"
+                        f"   • **Analysis:** {a['recommendation_reason']}"
+                    )
+                answer_text = (
+                    f"**AI Backup Supplier Recommendations for '{d['primary_supplier']}':**\n\n"
+                    + "\n\n".join(lines)
+                    + "\n\n💡 *Shifting order volume to these pre-qualified backup vendors protects against lead-time delays and mitigates single-supplier risk.*"
+                )
+                used_tool_name = "get_alternate_suppliers"
+            else:
+                answer_text = f"No qualified backup suppliers found for '{supp_name}'."
+
+        # 13. Demand Spike & Statistical Anomaly Detector (Z >= 2.5)
+        elif target_tool in ["detect_demand_anomalies", "demand_anomaly"] or state.get("intent") == "demand_anomaly":
+            anom_res = await analytics.detect_demand_anomalies(threshold_z=2.5)
+            raw_data = anom_res
+            if anom_res.get("success") and anom_res.get("data"):
+                items = anom_res["data"]
+                lines = []
+                for idx, a in enumerate(items, 1):
+                    lines.append(
+                        f"**{idx}. {a['product_name']} ({a['sku']})** — *{a['warehouse_name']}*\n"
+                        f"   • **Statistical Z-Score:** **Z = {a['z_score']:.2f}** ({a['severity']} ANOMALY)\n"
+                        f"   • **Consumption Surge:** **{a['current_daily_sales']} units/day** (+{a['spike_percentage']:.1f}% vs 30-day mean of {a['historical_mean']:.1f})\n"
+                        f"   • **Stockout Horizon:** **{a['stockout_days_remaining']} day(s) remaining** ({a['available_quantity']} available)\n"
+                        f"   • **Recommended Action:** Expand safety stock buffer by **+{a['recommended_buffer_increase']} units** immediately."
+                    )
+                answer_text = (
+                    f"**Statistical Demand Anomaly Report (Z ≥ 2.5 Threshold - {len(items)} Surges Detected):**\n\n"
+                    + "\n\n".join(lines)
+                    + "\n\n💡 *Statistical Z-scores greater than 2.5 indicate abnormal demand velocity exceeding 99% of historical sales variance. Immediate safety buffer expansion is recommended.*"
+                )
+                used_tool_name = "detect_demand_anomalies"
+            else:
+                answer_text = "All regional product consumption rates remain within normal statistical variance (Z < 2.5). No demand surges detected."
+
+        # 14. Default Fallback
         else:
             answer_text = "No data available."
 

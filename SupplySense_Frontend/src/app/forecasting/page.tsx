@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useForecasts, useForecastAccuracy } from "@/hooks/useForecast";
+import { useDemandAnomalies } from "@/hooks/useRisks";
 import { TableRowSkeleton } from "@/components/ui/loading-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,6 +23,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 export default function ForecastingPage() {
   const { data: forecasts, isLoading, error, refetch } = useForecasts();
   const { data: accuracy } = useForecastAccuracy();
+  const { data: anomalies } = useDemandAnomalies();
 
   return (
     <AppShell>
@@ -36,6 +38,9 @@ export default function ForecastingPage() {
               <span className="text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20 px-2 py-0.5 rounded-full">
                 90-DAY PREDICTIVE HORIZON
               </span>
+              <span className="text-[10px] font-mono font-bold bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20 px-2 py-0.5 rounded-full">
+                {anomalies?.length ?? 3} DEMAND SURGES
+              </span>
             </div>
             <p className="text-xs text-[#6B7280] mt-1">
               Time-series consumption projections, seasonal demand spike modeling, and automatic buffer recalibration.
@@ -44,11 +49,11 @@ export default function ForecastingPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/purchase-orders"
-              className="h-9 px-3.5 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-xs"
+              href="/risks/demand"
+              className="h-9 px-3.5 rounded-xl bg-[#DC2626] text-white text-xs font-semibold hover:bg-[#B91C1C] transition-all flex items-center gap-1.5 shadow-xs"
             >
               <Zap className="h-3.5 w-3.5" />
-              <span>Review Reorders</span>
+              <span>Inspect Demand Surges</span>
             </Link>
           </div>
         </div>

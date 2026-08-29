@@ -52,3 +52,27 @@ export interface SupplierListParams {
   search?: string;
   risk_rating?: string;
 }
+
+export interface AlternateSupplierRecommendation {
+  primary_supplier_id: string;
+  primary_supplier_name: string;
+  alternate_supplier_id: string;
+  alternate_supplier_name: string;
+  city?: string | null;
+  country?: string | null;
+  lead_time: number;
+  reliability_score: number;
+  quality_score: number;
+  risk_rating: string;
+  score_improvement: number;
+  matched_categories: string[];
+  recommendation_reason: string;
+}
+
+export interface SupplierReallocateRequest {
+  primary_supplier_id: string;
+  alternate_supplier_id: string;
+  reallocation_percentage: number;
+  reason?: string;
+}
+

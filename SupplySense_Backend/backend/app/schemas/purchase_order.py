@@ -39,3 +39,19 @@ class PurchaseOrderResponse(BaseModel):
 
 class PurchaseOrderDetailResponse(PurchaseOrderResponse):
     items: List[PurchaseOrderItemSchema] = Field(default_factory=list, description="PO line items.")
+
+
+class CreatePOItemInput(BaseModel):
+    product_id: str = Field(..., description="Product ID.")
+    quantity: int = Field(..., ge=1, description="Quantity to order.")
+    unit_price: Optional[Decimal] = Field(default=None, description="Unit price override.")
+
+
+class CreatePOInput(BaseModel):
+    supplier_id: str = Field(..., description="Supplier ID.")
+    warehouse_id: str = Field(..., description="Destination Warehouse ID.")
+    expected_delivery_date: Optional[date] = Field(default=None, description="Expected delivery date.")
+    priority: Optional[str] = Field(default="Normal", description="Normal, High, Urgent.")
+    notes: Optional[str] = Field(default=None, description="Notes/instructions.")
+    items: List[CreatePOItemInput] = Field(..., min_items=1, description="Line items.")
+

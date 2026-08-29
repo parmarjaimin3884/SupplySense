@@ -28,6 +28,8 @@ import {
   ChevronDown,
   Shield,
   LogOut,
+  Zap,
+  FileText,
 } from "lucide-react";
 import { useRole } from "@/context/role-context";
 import { useNotifications } from "@/context/notification-context";
@@ -84,9 +86,11 @@ export function AppShell({ children }: AppShellProps) {
       label: "Intelligence",
       role: "all",
       items: [
-        { title: "Risks", href: "/risks", icon: ShieldAlert },
+        { title: "Risks Center", href: "/risks", icon: ShieldAlert },
+        { title: "Demand Spikes & Surges", href: "/risks/demand", icon: Zap },
         { title: "Forecasts", href: "/forecasting", icon: TrendingUp },
         { title: "Executive Insights", href: "/executive", icon: PieChart },
+        { title: "Reports & Exporters", href: "/reports", icon: FileText },
         { title: "AI Assistant", href: "/assistant", icon: Sparkles },
       ],
     },

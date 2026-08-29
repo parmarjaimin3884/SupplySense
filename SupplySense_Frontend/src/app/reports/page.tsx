@@ -11,30 +11,149 @@ import {
   CheckCircle2,
   FileText,
   Filter,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { MOCK_REPORTS } from "@/data/mock-data";
+import { exportToCSV, exportToPDF } from "@/lib/export/reports-exporter";
+import { MOCK_SKUS, MOCK_PURCHASE_ORDERS, MOCK_SUPPLIERS } from "@/data/mock-data";
 
 export default function ReportsCenterPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleExportPDFInventory = () => {
+    const headers = ["SKU Code", "Product Name", "Warehouse Hub", "Stock On Hand", "Safety Buffer", "Value (in ₹)"];
+    const rows = MOCK_SKUS.map((item) => [
+      item.sku,
+      item.name,
+      item.location,
+      item.onHand,
+      item.safetyStock,
+      `₹${(item.onHand * item.unitCost).toLocaleString("en-IN")}`,
+    ]);
+
+    exportToPDF(
+      "Executive Inventory Valuation Report",
+      "Multi-facility stock levels, warehouse hubs, and total inventory value in Indian Rupees (₹).",
+      headers,
+      rows,
+      "SupplySense_Inventory_Valuation_Report"
+    );
+  };
+
+  const handleExportCSVPurchaseOrders = () => {
+    const headers = ["PO Number", "Product", "SKU", "Supplier", "Quantity", "Total Cost (in ₹)", "Expected Delivery", "Status"];
+    const rows = MOCK_PURCHASE_ORDERS.map((po) => [
+      po.poNumber,
+      po.productName,
+      po.sku,
+      po.supplier,
+      po.quantity,
+      `₹${po.totalCost.toLocaleString("en-IN")}`,
+      po.expectedDelivery,
+      po.status,
+    ]);
+
+    exportToCSV("SupplySense_Purchase_Orders_Ledger", headers, rows);
+  };
+
+  const handleExportPDFSuppliers = () => {
+    const headers = ["Supplier Name", "Origin", "On-Time Delivery", "Defect Rate", "Performance Score", "Risk Status"];
+    const rows = MOCK_SUPPLIERS.map((sup) => [
+      sup.name,
+      sup.origin,
+      `${sup.onTimeDeliveryPct}%`,
+      `${sup.defectRatePpm} PPM`,
+      `${sup.performanceScore}/100`,
+      sup.riskStatus,
+    ]);
+
+    exportToPDF(
+      "Supplier Risk & SLA Audit Report",
+      "Vendor SLA compliance ratings, quality performance, and procurement lead times.",
+      headers,
+      rows,
+      "SupplySense_Supplier_SLA_Audit_Report"
+    );
+  };
+
+  const handleExportCSVTransfers = () => {
+    const headers = ["Dispatch ID", "Origin Hub", "Destination Hub", "Quantity", "Estimated Savings (in ₹)", "Status"];
+    const rows = [
+      ["TRF-2026-0801", "Surat Hub", "Mumbai Hub", 1200, "₹1,45,000", "IN_TRANSIT"],
+      ["TRF-2026-0802", "Surat Hub", "Delhi Hub", 1063, "₹1,20,000", "INITIATED"],
+      ["TRF-2026-0803", "Bangalore Hub", "Mumbai Hub", 850, "₹95,000", "DELIVERED"],
+    ];
+
+    exportToCSV("SupplySense_Inter_Depot_Transfers_Ledger", headers, rows);
+  };
+
+  const reportsList = [
+    {
+      id: "rep-1",
+      title: "Executive Inventory Valuation Report",
+      category: "INVENTORY",
+      format: "PDF",
+      description: "Itemized SKU stock levels, warehouse distribution breakdown, and total inventory financial valuation in Indian Rupees (₹).",
+      lastGenerated: "Today",
+      fileSize: "1.4 MB",
+      action: handleExportPDFInventory,
+    },
+    {
+      id: "rep-2",
+      title: "Purchase Orders & Procurement Ledger",
+      category: "PURCHASE ORDERS",
+      format: "CSV",
+      description: "Active and historical Purchase Orders with vendor fulfillment statuses, delivery dates, and total procurement spend.",
+      lastGenerated: "Today",
+      fileSize: "820 KB",
+      action: handleExportCSVPurchaseOrders,
+    },
+    {
+      id: "rep-3",
+      title: "Supplier Risk & SLA Compliance Audit",
+      category: "SUPPLIERS",
+      format: "PDF",
+      description: "Comprehensive vendor scorecards, on-time delivery ratings (OTIF), lead-time drift audits, and backup vendor recommendations.",
+      lastGenerated: "Yesterday",
+      fileSize: "2.1 MB",
+      action: handleExportPDFSuppliers,
+    },
+    {
+      id: "rep-4",
+      title: "Inter-Depot Stock Transfers Ledger",
+      category: "TRANSFERS",
+      format: "CSV",
+      description: "Audit trail of network stock rebalancing dispatches between Surat, Mumbai, Delhi, Ahmedabad, and Bangalore hubs.",
+      lastGenerated: "Today",
+      fileSize: "450 KB",
+      action: handleExportCSVTransfers,
+    },
+  ];
 
   const filteredReports =
     selectedCategory === "all"
-      ? MOCK_REPORTS
-      : MOCK_REPORTS.filter((r) => r.category.toLowerCase() === selectedCategory.toLowerCase());
+      ? reportsList
+      : reportsList.filter((r) => r.category.toLowerCase().includes(selectedCategory.toLowerCase()));
 
   return (
     <AppShell>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E5E7EB] pb-5">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#111827]">
-              Reports & Executive Briefings Center
-            </h1>
-            <p className="text-xs text-[#6B7280] mt-0.5">
-              Automated multi-facility inventory valuations, supplier SLA compliance audits, and scheduled PDF/Excel exports.
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-[#111827]">
+                Reports & Executive Briefings Center
+              </h1>
+              <span className="text-[10px] font-mono font-bold bg-[#F0FDF4] text-[#16A34A] border border-[#16A34A]/20 px-2.5 py-0.5 rounded-full">
+                1-CLICK PDF & CSV EXPORTERS
+              </span>
+            </div>
+            <p className="text-xs text-[#6B7280] mt-1">
+              Multi-facility inventory valuations in Indian Rupees (₹), supplier SLA scorecards, and downloadable manager briefings.
             </p>
           </div>
 
@@ -45,14 +164,39 @@ export default function ReportsCenterPage() {
               className="h-9 px-4 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <Calendar className="h-3.5 w-3.5" />
-              <span>Schedule Recurring Export</span>
+              <span>Schedule Automated Export</span>
             </button>
+          </div>
+        </div>
+
+        {/* Live DB Financial Summary Banner */}
+        <div className="rounded-2xl border border-[#2563EB]/25 bg-gradient-to-br from-[#EFF6FF]/70 via-white to-[#F0FDF4]/50 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#2563EB]">
+              <Sparkles className="h-4 w-4" />
+              <span>LIVE DATABASE NETWORK AGGREGATES</span>
+            </div>
+            <p className="text-xs text-[#374151]">
+              Aggregated across 5 regional distribution hubs (Surat, Mumbai, Delhi, Ahmedabad, Bangalore).
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 text-xs shrink-0">
+            <div className="p-2.5 rounded-xl bg-white border border-[#E5E7EB]">
+              <span className="text-[10px] text-[#6B7280] block">Total Network Inventory Value</span>
+              <strong className="text-sm font-mono font-bold text-[#111827]">₹1,45,80,000 INR</strong>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white border border-[#E5E7EB]">
+              <span className="text-[10px] text-[#6B7280] block">Active Procurement Spend</span>
+              <strong className="text-sm font-mono font-bold text-[#2563EB]">₹28,50,000 INR</strong>
+            </div>
           </div>
         </div>
 
         {/* Category Filters */}
         <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl border border-[#E5E7EB] shadow-xs text-xs font-semibold">
-          {["all", "inventory", "risk", "supplier", "forecast"].map((cat) => (
+          {["all", "inventory", "purchase orders", "suppliers", "transfers"].map((cat) => (
             <button
               key={cat}
               type="button"
@@ -63,7 +207,7 @@ export default function ReportsCenterPage() {
                   : "text-[#6B7280] hover:text-[#111827]"
               }`}
             >
-              {cat === "all" ? "All Reports" : `${cat} Reports`}
+              {cat === "all" ? "All Reports" : cat}
             </button>
           ))}
         </div>
@@ -83,11 +227,11 @@ export default function ReportsCenterPage() {
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-[#111827]">{report.title}</h3>
-                      <span className="text-[10px] font-mono text-[#6B7280]">{report.category} Domain</span>
+                      <span className="text-[10px] font-mono text-[#6B7280]">{report.category}</span>
                     </div>
                   </div>
 
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#F3F4F6] text-[#111827]">
+                  <span className="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[#111827] text-white">
                     {report.format}
                   </span>
                 </div>
@@ -96,9 +240,9 @@ export default function ReportsCenterPage() {
                   {report.description}
                 </p>
 
-                <div className="flex items-center gap-3 text-[11px] text-[#6B7280] pt-1">
-                  <span>Frequency: <strong className="text-[#111827]">{report.frequency}</strong></span>
-                  <span>Size: <strong className="text-[#111827]">{report.fileSize}</strong></span>
+                <div className="flex items-center gap-4 text-[11px] text-[#6B7280] pt-1">
+                  <span>Scope: <strong className="text-[#111827]">5 Warehouses</strong></span>
+                  <span>Est. File Size: <strong className="text-[#111827]">{report.fileSize}</strong></span>
                 </div>
               </div>
 
@@ -109,11 +253,12 @@ export default function ReportsCenterPage() {
 
                 <button
                   type="button"
-                  onClick={() => alert(`Downloading ${report.title} (${report.format})...`)}
-                  className="h-8 px-3 rounded-lg border border-[#E5E7EB] bg-white text-xs font-semibold text-[#111827] hover:bg-[#F9FAFB] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  onClick={report.action}
+                  disabled={downloadingId === report.id}
+                  className="h-8 px-3 rounded-lg border border-[#E5E7EB] bg-[#111827] text-white text-xs font-semibold hover:bg-black flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
                 >
-                  <Download className="h-3 w-3 text-[#6B7280]" />
-                  <span>Download {report.format}</span>
+                  <Download className="h-3 w-3" />
+                  <span>{downloadingId === report.id ? "Generating..." : `Download ${report.format}`}</span>
                 </button>
               </div>
             </div>
@@ -135,13 +280,12 @@ export default function ReportsCenterPage() {
                   <select className="w-full h-10 px-3 rounded-xl border border-[#E5E7EB] focus:outline-none">
                     <option>Executive Inventory Health Audit (PDF)</option>
                     <option>P0/P1 Supply Disruption & Risk Log (PDF)</option>
-                    <option>Supplier OTIF & Lead-Time Audit Ledger (Excel)</option>
-                    <option>90-Day ML Demand Forecast Variance (CSV)</option>
+                    <option>Supplier OTIF & Lead-Time Audit Ledger (CSV)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#374151] mb-1">Cron Frequency</label>
+                  <label className="block text-[11px] font-semibold text-[#374151] mb-1">Frequency</label>
                   <select className="w-full h-10 px-3 rounded-xl border border-[#E5E7EB] focus:outline-none">
                     <option>Weekly (Every Monday at 08:00 UTC)</option>
                     <option>Daily (Every morning at 06:00 UTC)</option>
@@ -153,7 +297,7 @@ export default function ReportsCenterPage() {
                   <label className="block text-[11px] font-semibold text-[#374151] mb-1">Recipient Email List</label>
                   <input
                     type="text"
-                    defaultValue="executive-team@enterprise.com, ops-lead@enterprise.com"
+                    defaultValue="executive-team@company.com, ops-lead@company.com"
                     className="w-full h-10 px-3 rounded-xl border border-[#E5E7EB] focus:outline-none"
                   />
                 </div>
@@ -170,7 +314,6 @@ export default function ReportsCenterPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    alert("Report Cron Schedule Saved.");
                     setShowScheduleModal(false);
                   }}
                   className="px-4 py-2 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black"

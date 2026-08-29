@@ -41,6 +41,7 @@ export const queryKeys = {
     highRisk: ["suppliers", "high-risk"] as const,
     performance: ["suppliers", "performance"] as const,
     scorecards: ["suppliers", "scorecards"] as const,
+    alternates: (id: string) => ["suppliers", "alternates", id] as const,
   },
 
   // ── Shipments ──
@@ -61,12 +62,22 @@ export const queryKeys = {
     topProducts: ["forecast", "top-products"] as const,
   },
 
+  // ── Purchase Orders ──
+  purchaseOrders: {
+    all: ["purchaseOrders"] as const,
+    list: (params?: any) => ["purchaseOrders", "list", params] as const,
+    open: ["purchaseOrders", "open"] as const,
+    pendingApproval: ["purchaseOrders", "pendingApproval"] as const,
+    detail: (id: string) => ["purchaseOrders", "detail", id] as const,
+  },
+
   // ── Risks ──
   risks: {
     all: ["risks"] as const,
     list: ["risks", "list"] as const,
     critical: ["risks", "critical"] as const,
     summary: ["risks", "summary"] as const,
+    anomalies: ["risks", "anomalies"] as const,
   },
 
   // ── Executive ──
