@@ -124,37 +124,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      // Graceful offline demo fallback if backend connection fails or times out
-      const cleanName = username ? username.trim() : "alex";
-      const demoRole = cleanName.toLowerCase().includes("admin") ? "Admin" : "Inventory Manager";
-      const demoUser: UserResponse = {
-        id: "usr-demo-01",
-        username: cleanName.includes("@") ? cleanName.split("@")[0] : cleanName,
-        email: cleanName.includes("@") ? cleanName : `${cleanName}@enterprise.com`,
-        role: demoRole,
-        employee_name: cleanName.includes("@") ? cleanName.split("@")[0] : cleanName,
-        warehouse_name: "Surat Central Warehouse",
-      };
-
-      setStoredAuth({
-        accessToken: "mock-jwt-access-token-demo",
-        refreshToken: "mock-jwt-refresh-token-demo",
-      });
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("supplysense_user", JSON.stringify(demoUser));
-        document.cookie = `supplysense_authenticated=true; path=/; max-age=86400; SameSite=Lax`;
-        document.cookie = `supplysense_role=${demoRole}; path=/; max-age=86400; SameSite=Lax`;
-      }
-
-      set({
-        user: demoUser,
-        role: demoRole,
-        accessToken: "mock-jwt-access-token-demo",
-        refreshToken: "mock-jwt-refresh-token-demo",
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      set({ isLoading: false });
+      throw error;
     }
   },
 

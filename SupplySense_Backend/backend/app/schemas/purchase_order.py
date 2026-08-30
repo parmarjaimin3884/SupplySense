@@ -35,6 +35,7 @@ class PurchaseOrderResponse(BaseModel):
     priority: Optional[str] = Field(default="Normal", description="Normal, High, Urgent.")
     approved_by: Optional[str] = Field(default=None, description="Approving manager username.")
     total_amount: Decimal = Field(..., description="Total PO value.")
+    items: Optional[List[PurchaseOrderItemSchema]] = Field(default_factory=list, description="PO line items.")
 
 
 class PurchaseOrderDetailResponse(PurchaseOrderResponse):

@@ -16,17 +16,31 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { MOCK_SKUS } from "@/data/mock-data";
+import { useLowStock } from "@/hooks/useInventory";
 
 const STORAGE_KEY = "supplysense_reorder_statuses_v1";
 
 export default function ReorderPage() {
-  const [reorders, setReorders] = useState(() => {
-    return MOCK_SKUS.filter((s) => s.reorderQuantity > 0).map((s) => ({
-      ...s,
-      status: "pending" as "pending" | "approved" | "rejected",
-    }));
-  });
+  const { data: lowStockItems, isLoading } = useLowStock();
+  const [reorders, setReorders] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (lowStockItems) {
+      const formatted = (lowStockItems || []).map((s: any) => ({
+        id: s.id,
+        sku: s.sku,
+        name: s.name || s.product_name,
+        category: s.category_name || "Electronics",
+        currentStock: s.available_quantity ?? s.quantity_on_hand ?? 0,
+        reorderQuantity: s.reorder_level ?? 50,
+        supplier: s.supplier_name || "Tier-1 Vendor",
+        leadTimeDays: s.lead_time || 14,
+        unitCost: Number(s.cost_price || s.unit_cost || 100),
+        status: "pending" as "pending" | "approved" | "rejected",
+      }));
+      setReorders(formatted);
+    }
+  }, [lowStockItems]);
 
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -48,7 +62,8 @@ export default function ReorderPage() {
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [lowStockItems]);
+
 
   // Save changes to localStorage whenever reorders change
   const persistState = (newReorders: typeof reorders) => {
@@ -80,8 +95,16 @@ export default function ReorderPage() {
   };
 
   const handleResetQueue = () => {
-    const reset = MOCK_SKUS.filter((s) => s.reorderQuantity > 0).map((s) => ({
-      ...s,
+    const reset = (lowStockItems || []).map((s: any) => ({
+      id: s.id,
+      sku: s.sku,
+      name: s.name || s.product_name,
+      category: s.category_name || "Electronics",
+      currentStock: s.available_quantity ?? s.quantity_on_hand ?? 0,
+      reorderQuantity: s.reorder_level ?? 50,
+      supplier: s.supplier_name || "Tier-1 Vendor",
+      leadTimeDays: s.lead_time || 14,
+      unitCost: Number(s.cost_price || s.unit_cost || 100),
       status: "pending" as const,
     }));
     persistState(reset);

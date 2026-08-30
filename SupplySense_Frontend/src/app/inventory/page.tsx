@@ -120,86 +120,7 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* SECTION: AI RECOMMENDATIONS                                               */}
-        {/* ========================================================================= */}
-        <section className="rounded-2xl border border-[#2563EB]/25 bg-gradient-to-br from-[#EFF6FF]/60 via-white to-[#F0FDF4]/40 p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#2563EB]/15 pb-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#2563EB]" />
-                <h2 className="text-base font-bold text-[#111827]">AI Recommendations</h2>
-                <span className="text-[10px] font-mono font-bold bg-[#2563EB] text-white px-2 py-0.2 rounded">
-                  2 REORDERS RECOMMENDED
-                </span>
-              </div>
-              <p className="text-xs text-[#4B5563] mt-0.5">
-                Automated stock calculations based on consumption burn-rate, supplier lead-times, and 30-day forecast models.
-              </p>
-            </div>
-            <Link
-              href="/purchase-orders"
-              className="text-xs font-semibold text-[#2563EB] hover:underline flex items-center gap-1 shrink-0"
-            >
-              <span>View All Purchase Orders</span>
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(lowStockItems || []).slice(0, 4).map((item) => (
-              <div
-                key={item.id}
-                className="p-4 rounded-xl border border-[#E5E7EB] bg-white space-y-3 shadow-2xs hover:border-[#2563EB]/40 transition-all flex flex-col justify-between"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono font-bold text-[#2563EB] text-xs">{item.sku || item.id}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                        item.stock_status === "CRITICAL" || item.stock_status === "OUT_OF_STOCK"
-                          ? "bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20"
-                          : "bg-[#FFFBEB] text-[#D97706]"
-                      }`}
-                    >
-                      {item.stock_status}
-                    </span>
-                  </div>
-
-                  <h3 className="text-sm font-bold text-[#111827]">{item.product_name || "SKU Item"}</h3>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-[#4B5563] pt-1">
-                    <div>On Hand: <strong className="text-[#111827] block font-mono">{item.quantity_on_hand} Units</strong></div>
-                    <div>Available: <strong className="text-[#111827] block font-mono">{item.available_quantity} Units</strong></div>
-                    <div>Reserved: <strong className="text-[#111827] block font-mono">{item.reserved_quantity} Units</strong></div>
-                    <div>Damaged: <strong className="text-[#111827] block font-mono">{item.damaged_quantity} Units</strong></div>
-                  </div>
-
-                  <div className="p-2.5 rounded-lg bg-[#F9FAFB] border border-[#E5E7EB] text-xs text-[#374151] flex items-center justify-between">
-                    <span>Warehouse: <strong className="text-[#111827] font-mono">{item.warehouse_name || item.warehouse_id}</strong></span>
-                    <span className="text-[11px] text-[#2563EB] font-medium">{item.category_name || "General"}</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-[#F3F4F6] flex items-center justify-between">
-                  <Link
-                    href={`/inventory/${item.id}`}
-                    className="text-xs font-semibold text-[#6B7280] hover:text-[#111827]"
-                  >
-                    View Product Details
-                  </Link>
-                  <Link
-                    href={`/purchase-orders`}
-                    className="h-8 px-3 rounded-lg bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-xs"
-                  >
-                    <Zap className="h-3 w-3" />
-                    <span>Create Purchase Order</span>
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* ========================================================================= */}
         {/* SECTION: INTER-DEPOT STOCK TRANSFERS & REBALANCING                        */}
@@ -443,11 +364,7 @@ export default function InventoryPage() {
               </thead>
               <tbody className="divide-y divide-[#F3F4F6] text-[#111827]">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-6 px-4">
-                      <TableRowSkeleton rows={5} cols={8} />
-                    </td>
-                  </tr>
+                  <TableRowSkeleton rows={5} cols={8} />
                 ) : error ? (
                   <tr>
                     <td colSpan={8} className="py-6 px-4">

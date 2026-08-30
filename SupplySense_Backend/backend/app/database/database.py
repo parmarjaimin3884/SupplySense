@@ -37,11 +37,11 @@ connect_args = {"ssl": True} if needs_ssl else {}
 # Async Engine Creation
 async_engine: AsyncEngine = create_async_engine(
     db_url,
-    echo=settings.DEBUG,
+    echo=False,
     future=True,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=15,
+    max_overflow=25,
     connect_args=connect_args,
 )
 

@@ -9,7 +9,11 @@ import type { InventoryItem, InventoryDetail, InventoryMovement, InventoryListPa
 export const inventoryApi = {
   getList: async (params?: InventoryListParams): Promise<PaginationResponse<InventoryItem>> => {
     const response = await apiClient.get<PaginationResponse<InventoryItem>>("/inventory", { params });
-    return response.data;
+    const resData = response.data;
+    if (resData && Array.isArray(resData.data)) {
+      resData.items = resData.data;
+    }
+    return resData;
   },
 
   getById: async (id: string): Promise<InventoryDetail> => {

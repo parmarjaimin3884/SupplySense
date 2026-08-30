@@ -22,6 +22,7 @@ export interface PaginationResponse<T> {
   success: boolean;
   message: string;
   data: T[];
+  items?: T[];
   meta: PaginationMeta;
   request_id?: string;
   timestamp?: string;

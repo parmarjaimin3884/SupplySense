@@ -50,15 +50,17 @@ export function CardSkeleton({ count = 3 }: { count?: number }) {
 
 export function TableRowSkeleton({ rows = 5, cols = 6 }: { rows?: number; cols?: number }) {
   return (
-    <div className="space-y-2">
+    <>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white border border-[#E5E7EB]">
+        <tr key={i} className="animate-pulse border-b border-[#F3F4F6]">
           {Array.from({ length: cols }).map((_, j) => (
-            <Skeleton key={j} className="h-4 flex-1" />
+            <td key={j} className="py-3.5 px-4">
+              <Skeleton className="h-4 w-full" />
+            </td>
           ))}
-        </div>
+        </tr>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -79,7 +81,13 @@ export function PageSkeleton() {
         <Skeleton className="h-4 w-96" />
       </div>
       <KPISkeleton />
-      <TableRowSkeleton />
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 overflow-hidden">
+        <table className="w-full">
+          <tbody>
+            <TableRowSkeleton />
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

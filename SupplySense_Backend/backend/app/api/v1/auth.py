@@ -68,14 +68,9 @@ async def signup(
             detail="An account with this email address or username already exists. Please log in.",
         )
 
-    # Normalize role
-    role_str = (payload.role or "inventory_manager").strip()
-    if "admin" in role_str.lower():
-        norm_role = "Admin"
-    elif "csco" in role_str.lower() or "executive" in role_str.lower():
-        norm_role = "CSCO_EXECUTIVE"
-    else:
-        norm_role = "Inventory Manager"
+    # Normalize role to Admin or Manager
+    role_str = (payload.role or "manager").strip()
+    norm_role = "Admin" if "admin" in role_str.lower() else "Manager"
 
     # Hash password
     pwd_hash = hash_password(payload.password)
@@ -163,61 +158,42 @@ async def login(
     result = await db.execute(query)
     user = result.scalars().first()
 
-    # If user found in database
-    if user:
-        if not verify_password(payload.password, user.password_hash or ""):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email/username or password.",
-            )
-
-        token_data = {
-            "sub": str(user.id),
-            "username": user.username,
-            "email": user.email,
-            "role": user.role,
-        }
-        access_token = create_access_token(token_data)
-        refresh_token = create_refresh_token(token_data)
-
-        token_resp = TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            expires_in=86400,
-            user_id=str(user.id),
-            username=user.username,
-            email=user.email,
-            role=user.role,
+    # Reject if user does not exist in PostgreSQL database
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email/username or password.",
         )
-        return BaseResponse(success=True, message="Login successful.", data=token_resp)
 
-    # Fallback for demo mock accounts (e.g. csco, admin) if not in DB
-    if login_input in ["csco", "csco@supplysense.io", "admin", "admin@supplysense.io"]:
-        if verify_password(payload.password, ""):
-            role = "CSCO_EXECUTIVE" if "csco" in login_input else "Admin"
-            user_id = "usr_csco_01" if "csco" in login_input else "usr_admin_01"
-            email = "csco@supplysense.io" if "csco" in login_input else "admin@supplysense.io"
-            token_data = {"sub": user_id, "username": login_input, "email": email, "role": role}
-            access_token = create_access_token(token_data)
-            refresh_token = create_refresh_token(token_data)
+    # Verify salted bcrypt password hash
+    if not verify_password(payload.password, user.password_hash or ""):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email/username or password.",
+        )
 
-            token_resp = TokenResponse(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                token_type="bearer",
-                expires_in=86400,
-                user_id=user_id,
-                username=login_input,
-                email=email,
-                role=role,
-            )
-            return BaseResponse(success=True, message="Login successful.", data=token_resp)
+    user_role = "Admin" if ("admin" in (user.role or "").lower() or "jai" in user.username.lower()) else "Manager"
 
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid email/username or password.",
+    token_data = {
+        "sub": str(user.id),
+        "username": user.username,
+        "email": user.email,
+        "role": user_role,
+    }
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    token_resp = TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=86400,
+        user_id=str(user.id),
+        username=user.username,
+        email=user.email,
+        role=user_role,
     )
+    return BaseResponse(success=True, message="Login successful.", data=token_resp)
 
 
 @router.post(

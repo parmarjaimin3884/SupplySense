@@ -31,7 +31,7 @@ export default function UserManagementPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
-  const [newRole, setNewRole] = useState<"Admin" | "Inventory Manager">("Inventory Manager");
+  const [newRole, setNewRole] = useState<"Admin" | "Manager">("Manager");
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -115,7 +115,7 @@ export default function UserManagementPage() {
             <div className="space-y-1">
               <h2 className="text-lg font-bold text-[#111827]">Access Restricted</h2>
               <p className="text-xs text-[#6B7280] leading-relaxed">
-                User Management and RBAC provisioning require Administrator privileges. Your current role is <strong className="text-[#111827]">Inventory Manager</strong>.
+                User Management and RBAC provisioning require Administrator privileges. Your current role is <strong className="text-[#111827]">Manager</strong>.
               </p>
             </div>
             <div className="pt-2 flex flex-col gap-2">
@@ -325,10 +325,10 @@ export default function UserManagementPage() {
                   <label className="block text-[11px] font-semibold text-[#374151] mb-1">Role Boundary</label>
                   <select
                     value={newRole}
-                    onChange={(e) => setNewRole(e.target.value as "Admin" | "Inventory Manager")}
+                    onChange={(e) => setNewRole(e.target.value as "Admin" | "Manager")}
                     className="w-full h-10 px-3 rounded-xl border border-[#E5E7EB] focus:border-[#111827] focus:outline-none bg-white"
                   >
-                    <option value="Inventory Manager">Inventory Manager (Operations & SKU Radar)</option>
+                    <option value="Manager">Manager (Operations & SKU Radar)</option>
                     <option value="Admin">Admin (Full Access & Workspace Settings)</option>
                   </select>
                 </div>

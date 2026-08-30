@@ -12,9 +12,12 @@ import {
   Zap,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { MOCK_LOGISTICS_ROUTES } from "@/data/mock-data";
+import { useShipmentList } from "@/hooks/useShipments";
 
 export default function LogisticsRiskPage() {
+  const { data: shipmentData, isLoading } = useShipmentList({ limit: 20 });
+  const shipments: any[] = shipmentData?.data || (shipmentData as any)?.items || [];
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -46,20 +49,20 @@ export default function LogisticsRiskPage() {
             <div className="text-xs text-[#DC2626] font-bold mb-1 flex items-center gap-1">
               <AlertTriangle className="h-3.5 w-3.5" /> Maritime Berth Delay
             </div>
-            <div className="text-2xl font-bold font-mono text-[#DC2626]">+11.0 Days</div>
-            <div className="text-[11px] text-[#DC2626]/80 mt-0.5">Ningbo Port typhoon shutdown</div>
+            <div className="text-2xl font-bold font-mono text-[#DC2626]">+2.5 Days</div>
+            <div className="text-[11px] text-[#DC2626]/80 mt-0.5">Port customs inspection delay</div>
           </div>
 
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-xs">
-            <div className="text-xs text-[#6B7280] font-medium mb-1">Delayed Sea Containers</div>
-            <div className="text-2xl font-bold font-mono text-[#111827]">8 TEU Units</div>
-            <div className="text-[11px] text-[#DC2626] mt-0.5 font-medium">$480k critical components</div>
+            <div className="text-xs text-[#6B7280] font-medium mb-1">Active Shipments</div>
+            <div className="text-2xl font-bold font-mono text-[#111827]">{shipments.length} Units</div>
+            <div className="text-[11px] text-[#2563EB] mt-0.5 font-medium">In-transit telematics monitored</div>
           </div>
 
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-xs">
-            <div className="text-xs text-[#6B7280] font-medium mb-1">Air Cargo Substitution</div>
-            <div className="text-2xl font-bold font-mono text-[#2563EB]">2 Active Flights</div>
-            <div className="text-[11px] text-[#16A34A] mt-0.5 font-medium">Frankfurt hub clear</div>
+            <div className="text-xs text-[#6B7280] font-medium mb-1">Carrier Network</div>
+            <div className="text-2xl font-bold font-mono text-[#2563EB]">Maersk & BlueDart</div>
+            <div className="text-[11px] text-[#16A34A] mt-0.5 font-medium">Multi-modal connectivity</div>
           </div>
         </div>
 
@@ -67,7 +70,7 @@ export default function LogisticsRiskPage() {
         <div className="rounded-2xl border border-[#E5E7EB] bg-white overflow-hidden shadow-xs">
           <div className="p-4 border-b border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between">
             <h2 className="text-base font-bold text-[#111827]">Global Shipping Corridor Telemetry</h2>
-            <span className="text-xs text-[#6B7280]">AIS Marine Telemetry Active</span>
+            <span className="text-xs text-[#6B7280]">Live DB Telemetry Active</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -77,44 +80,56 @@ export default function LogisticsRiskPage() {
                   <th className="py-3 px-4">SHIPPING CORRIDOR</th>
                   <th className="py-3 px-4">CARRIER</th>
                   <th className="py-3 px-4">CORRIDOR STATUS</th>
-                  <th className="py-3 px-4 text-right">CONTAINERS</th>
-                  <th className="py-3 px-4">DELAY ROOT CAUSE</th>
+                  <th className="py-3 px-4 text-right">DELAY</th>
+                  <th className="py-3 px-4">DELAY REASON</th>
                   <th className="py-3 px-4 text-right">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F3F4F6]">
-                {MOCK_LOGISTICS_ROUTES.map((route) => (
-                  <tr key={route.corridor} className="hover:bg-[#F9FAFB] transition-colors">
-                    <td className="py-3 px-4 font-bold text-[#111827]">{route.corridor}</td>
-                    <td className="py-3 px-4 text-[#4B5563]">{route.carrier}</td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          route.riskRating === "Critical"
-                            ? "bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20"
-                            : route.riskRating === "Low"
-                            ? "bg-[#F0FDF4] text-[#16A34A] border border-[#16A34A]/20"
-                            : "bg-[#FFFBEB] text-[#D97706] border border-[#F59E0B]/20"
-                        }`}
-                      >
-                        {route.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-[#111827]">
-                      {route.affectedContainers} TEU
-                    </td>
-                    <td className="py-3 px-4 text-[#6B7280]">{route.reason}</td>
-                    <td className="py-3 px-4 text-right">
-                      <Link
-                        href="/inventory/reorder"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2563EB] hover:underline"
-                      >
-                        <span>Split PO</span>
-                        <ArrowUpRight className="h-3 w-3" />
-                      </Link>
-                    </td>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-[#6B7280]">Loading live telemetry...</td>
                   </tr>
-                ))}
+                ) : shipments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-[#6B7280]">No active shipments found in database.</td>
+                  </tr>
+                ) : (
+                  shipments.map((shipment) => (
+                    <tr key={shipment.id} className="hover:bg-[#F9FAFB] transition-colors">
+                      <td className="py-3 px-4 font-bold text-[#111827]">
+                        {shipment.origin || "Surat Hub"} → {shipment.destination || "Mumbai Depot"}
+                      </td>
+                      <td className="py-3 px-4 text-[#4B5563]">{shipment.carrier || "Enterprise Express"}</td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            shipment.current_status === "DELAYED"
+                              ? "bg-[#FEF2F2] text-[#DC2626] border border-[#DC2626]/20"
+                              : shipment.current_status === "DELIVERED"
+                              ? "bg-[#F0FDF4] text-[#16A34A] border border-[#16A34A]/20"
+                              : "bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20"
+                          }`}
+                        >
+                          {shipment.current_status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-[#111827]">
+                        +{shipment.delay_days || 0} Days
+                      </td>
+                      <td className="py-3 px-4 text-[#6B7280]">{shipment.delay_reason || "On Schedule"}</td>
+                      <td className="py-3 px-4 text-right">
+                        <Link
+                          href="/inventory/reorder"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#2563EB] hover:underline"
+                        >
+                          <span>Split PO</span>
+                          <ArrowUpRight className="h-3 w-3" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -123,3 +138,4 @@ export default function LogisticsRiskPage() {
     </AppShell>
   );
 }
+

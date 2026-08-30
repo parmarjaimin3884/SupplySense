@@ -203,11 +203,7 @@ export default function SuppliersDirectoryPage() {
               </thead>
               <tbody className="divide-y divide-[#F3F4F6] text-[#111827]">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={8} className="py-6 px-4">
-                      <TableRowSkeleton rows={4} cols={8} />
-                    </td>
-                  </tr>
+                  <TableRowSkeleton rows={4} cols={8} />
                 ) : error ? (
                   <tr>
                     <td colSpan={8} className="py-6 px-4">

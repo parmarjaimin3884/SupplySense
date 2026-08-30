@@ -22,7 +22,6 @@ import { AppShell } from "@/components/layout/app-shell";
 import { useSupplierDetail, useAlternateSuppliers, useReallocateSupplier } from "@/hooks/useSuppliers";
 import { CardSkeleton } from "@/components/ui/loading-skeleton";
 import { ErrorState } from "@/components/ui/error-state";
-import { MOCK_SUPPLIERS } from "@/data/mock-data";
 
 export default function SupplierProfilePage({
   params,
@@ -45,7 +44,7 @@ export default function SupplierProfilePage({
     }
   }, []);
 
-  // Fetch real supplier profile & alternate backup vendors from Neon DB
+  // Fetch real supplier profile & alternate backup vendors from DB
   const { data: dbSupplier, isLoading, error, refetch } = useSupplierDetail(resolvedParams.id);
   const { data: alternateRecs } = useAlternateSuppliers(resolvedParams.id);
   const reallocateMutation = useReallocateSupplier();
@@ -72,44 +71,25 @@ export default function SupplierProfilePage({
     }
   };
 
-  // Fallback to mock data if ID happens to be a mock ID like sup-abc
-  const mockFallback = MOCK_SUPPLIERS.find((s) => s.id === resolvedParams.id);
-
   const supplier = dbSupplier
     ? {
         id: dbSupplier.id,
         name: dbSupplier.company_name,
         riskStatus: dbSupplier.risk_rating || "LOW",
         origin: dbSupplier.city && dbSupplier.country ? `${dbSupplier.city}, ${dbSupplier.country}` : dbSupplier.country || "Global Partner",
-        contactEmail: dbSupplier.email || "partner@enterprise.com",
-        phone: dbSupplier.phone || "+91 (020) 8492-1002",
-        activeSpend: "₹3,40,000",
+        contactEmail: dbSupplier.email || "supplier@enterprise.com",
+        phone: dbSupplier.phone || "N/A",
+        activeSpend: "Calculated via POs",
         reliabilityScore: Number(dbSupplier.reliability_score) || 95.0,
         qualityScore: Number(dbSupplier.quality_score) || 98.0,
-        leadTimeVariance: dbSupplier.average_delay ? `+${dbSupplier.average_delay} days` : "+0.5 days",
+        leadTimeVariance: dbSupplier.average_delay ? `+${dbSupplier.average_delay} days` : "0 days",
         leadTimeDays: dbSupplier.lead_time || 14,
         moq: dbSupplier.moq || 100,
         paymentTerms: dbSupplier.payment_terms || "Net 30",
-        gst: dbSupplier.gst_number || "27AABCS1429B1ZB",
-      }
-    : mockFallback
-    ? {
-        id: mockFallback.id,
-        name: mockFallback.name,
-        riskStatus: mockFallback.riskStatus,
-        origin: mockFallback.origin,
-        contactEmail: mockFallback.contactEmail,
-        phone: "+1 (408) 921-8840",
-        activeSpend: mockFallback.activeSpend,
-        reliabilityScore: parseFloat(mockFallback.otifRate) || 82.0,
-        qualityScore: 96.6,
-        leadTimeVariance: mockFallback.leadTimeVariance,
-        leadTimeDays: 14,
-        moq: 250,
-        paymentTerms: "Net 45",
-        gst: "US-CA-94088-EIN",
+        gst: dbSupplier.gst_number || "N/A",
       }
     : null;
+
 
   return (
     <AppShell>
@@ -129,7 +109,7 @@ export default function SupplierProfilePage({
             <CardSkeleton />
             <CardSkeleton />
           </div>
-        ) : error && !mockFallback ? (
+        ) : error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : !supplier ? (
           <div className="p-8 text-center bg-white rounded-2xl border border-[#E5E7EB]">

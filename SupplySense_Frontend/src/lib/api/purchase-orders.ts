@@ -9,7 +9,11 @@ import type { PurchaseOrder, CreatePOInput } from "@/types/purchase-order";
 export const purchaseOrderApi = {
   getList: async (params?: { page?: number; limit?: number; status?: string; supplier_id?: string }): Promise<PaginationResponse<PurchaseOrder>> => {
     const response = await apiClient.get<PaginationResponse<PurchaseOrder>>("/purchase-orders", { params });
-    return response.data;
+    const resData = response.data;
+    if (resData && Array.isArray(resData.data)) {
+      resData.items = resData.data;
+    }
+    return resData;
   },
 
   getOpen: async (): Promise<PurchaseOrder[]> => {

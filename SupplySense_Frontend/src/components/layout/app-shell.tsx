@@ -217,7 +217,7 @@ export function AppShell({ children }: AppShellProps) {
                       .toUpperCase()
                   : isAdmin
                   ? "AD"
-                  : "IM"}
+                  : "MN"}
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-[#9CA3AF] hidden sm:inline" />
             </button>
@@ -226,13 +226,13 @@ export function AppShell({ children }: AppShellProps) {
               <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-[#E5E7EB] bg-white p-2 shadow-lg z-50 text-xs animate-in fade-in">
                 <div className="px-3 py-2 border-b border-[#F3F4F6]">
                   <div className="font-bold text-[#111827]">
-                    {user?.employee_name || user?.username || (isAdmin ? "Administrator" : "Inventory Manager")}
+                    {user?.employee_name || user?.username || (isAdmin ? "Administrator" : "Manager")}
                   </div>
                   <div className="text-[11px] text-[#6B7280] truncate">
                     {user?.email || (isAdmin ? "admin@supplysense.io" : "manager@supplysense.io")}
                   </div>
-                  <div className="mt-1 inline-block px-1.5 py-0.5 rounded bg-[#F3F4F6] text-[10px] font-mono font-bold text-[#4B5563]">
-                    {isAdmin ? "ADMINISTRATOR" : "INVENTORY MANAGER"}
+                  <div className="mt-1 inline-block px-2 py-0.5 rounded bg-[#F3F4F6] text-[10px] font-mono font-bold text-[#111827]">
+                    {user?.role ? user.role.toUpperCase() : (isAdmin ? "ADMIN" : "MANAGER")}
                   </div>
                 </div>
 

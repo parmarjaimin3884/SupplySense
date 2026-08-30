@@ -9,7 +9,11 @@ import type { Shipment, CarrierPerformance, ShipmentListParams } from "@/types/s
 export const shipmentApi = {
   getList: async (params?: ShipmentListParams): Promise<PaginationResponse<Shipment>> => {
     const response = await apiClient.get<PaginationResponse<Shipment>>("/shipments", { params });
-    return response.data;
+    const resData = response.data;
+    if (resData && Array.isArray(resData.data)) {
+      resData.items = resData.data;
+    }
+    return resData;
   },
 
   getById: async (id: string): Promise<Shipment> => {

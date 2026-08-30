@@ -9,7 +9,11 @@ import type { Supplier, SupplierPerformance, SupplierScorecard, SupplierListPara
 export const supplierApi = {
   getList: async (params?: SupplierListParams): Promise<PaginationResponse<Supplier>> => {
     const response = await apiClient.get<PaginationResponse<Supplier>>("/suppliers", { params });
-    return response.data;
+    const resData = response.data;
+    if (resData && Array.isArray(resData.data)) {
+      resData.items = resData.data;
+    }
+    return resData;
   },
 
   getById: async (id: string): Promise<Supplier> => {
