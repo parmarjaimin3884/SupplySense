@@ -96,12 +96,8 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
     }
   }, [initialProduct]);
 
-  if (!isOpen) return null;
-
-  const targetWarehouseObj = warehouses.find((w) => w.id === warehouseId) || warehouses[0];
-  const targetSupplierObj = suppliers.find((s) => s.id === supplierId) || suppliers[0];
-
-  if (!isOpen) return null;
+  const targetWarehouseObj = warehouses.find((w: any) => w.id === warehouseId) || warehouses[0];
+  const targetSupplierObj = suppliers.find((s: any) => s.id === supplierId) || suppliers[0];
 
   const handleAddItem = () => {
     setItems([
