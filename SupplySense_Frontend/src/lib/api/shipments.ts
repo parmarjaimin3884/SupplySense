@@ -1,38 +1,65 @@
-/**
- * SupplySense — Shipments API Service
- */
+import client from "./client";
+import { BaseResponse } from "@/types/common";
 
-import apiClient from "@/lib/api/client";
-import type { BaseResponse, PaginationResponse } from "@/types/common";
-import type { Shipment, CarrierPerformance, ShipmentListParams } from "@/types/shipment";
+export interface ShipmentItem {
+  id: string;
+  purchase_order_id: string;
+  po_number?: string;
+  product_name: string;
+  sku: string;
+  quantity: number;
+  carrier: string;
+  vehicle_number: string;
+  current_status: "DISPATCHED" | "IN_TRANSIT" | "DELIVERED" | "COMPLETED" | "DELAYED";
+  current_location: string;
+  dispatch_date?: string;
+  expected_arrival?: string;
+  actual_arrival?: string;
+  delay_days: number;
+  delay_reason?: string;
+  supplier_name: string;
+  warehouse_name: string;
+  accepted_quantity?: number;
+  inspection_result?: string;
+}
 
-export const shipmentApi = {
-  getList: async (params?: ShipmentListParams): Promise<PaginationResponse<Shipment>> => {
-    const response = await apiClient.get<PaginationResponse<Shipment>>("/shipments", { params });
-    const resData = response.data;
-    if (resData && Array.isArray(resData.data)) {
-      resData.items = resData.data;
-    }
-    return resData;
-  },
+export interface ShipmentCreatePayload {
+  purchase_order_id: string;
+  carrier?: string;
+  vehicle_number?: string;
+  dispatch_date?: string;
+  expected_arrival?: string;
+  current_location?: string;
+}
 
-  getById: async (id: string): Promise<Shipment> => {
-    const response = await apiClient.get<BaseResponse<Shipment>>(`/shipments/${id}`);
-    return response.data.data;
-  },
+export interface GRNReceivingPayload {
+  accepted_quantity: number;
+  rejected_quantity?: number;
+  inspection_result?: string;
+  quality_issue?: string;
+}
 
-  getDelayed: async (): Promise<Shipment[]> => {
-    const response = await apiClient.get<BaseResponse<Shipment[]>>("/shipments/delayed");
-    return response.data.data;
-  },
+export const getShipments = async (params?: { status?: string; page?: number; limit?: number }) => {
+  const { data } = await client.get<BaseResponse<ShipmentItem[]>>("/api/v1/shipments", { params });
+  return data;
+};
 
-  getInTransit: async (): Promise<Shipment[]> => {
-    const response = await apiClient.get<BaseResponse<Shipment[]>>("/shipments/in-transit");
-    return response.data.data;
-  },
+export const createShipment = async (payload: ShipmentCreatePayload) => {
+  const { data } = await client.post<BaseResponse<ShipmentItem>>("/api/v1/shipments", payload);
+  return data;
+};
 
-  getCarrierPerformance: async (): Promise<CarrierPerformance[]> => {
-    const response = await apiClient.get<BaseResponse<CarrierPerformance[]>>("/shipments/carrier-performance");
-    return response.data.data;
-  },
+export const updateShipmentStatus = async (id: string, payload: { status: string; current_location?: string }) => {
+  const { data } = await client.patch<BaseResponse<ShipmentItem>>(`/api/v1/shipments/${id}/status`, payload);
+  return data;
+};
+
+export const receiveShipmentGRN = async (id: string, payload: GRNReceivingPayload) => {
+  const { data } = await client.post<BaseResponse<ShipmentItem>>(`/api/v1/shipments/${id}/receive`, payload);
+  return data;
+};
+
+export const simulateCarrierTelemetry = async () => {
+  const { data } = await client.post<BaseResponse<any>>("/api/v1/shipments/telemetry/simulate");
+  return data;
 };

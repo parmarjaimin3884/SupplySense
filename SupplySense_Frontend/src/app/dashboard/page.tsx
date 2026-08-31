@@ -44,8 +44,8 @@ export default function PrimaryIntelligenceDashboard() {
   const { data: kpis, isLoading: kpisLoading, error: kpisError, refetch: refetchKpis } = useDashboardKPIs();
   const { data: alerts, isLoading: alertsLoading } = useDashboardAlerts();
   const { data: lowStockItems } = useLowStock();
-  const { data: highRiskSuppliers } = useHighRiskSuppliers();
-  const { data: delayedShipments } = useDelayedShipments();
+  const { data: delayedShipmentsRes } = useDelayedShipments();
+  const delayedShipments: any[] = delayedShipmentsRes?.data || (delayedShipmentsRes as any)?.items || [];
   const { data: criticalRisks } = useCriticalRisks();
   const { data: warehouseUtils, isLoading: isWarehouseLoading } = useWarehouseUtilization();
   const { data: networkCapacity } = useWarehouseCapacity();
@@ -287,7 +287,7 @@ export default function PrimaryIntelligenceDashboard() {
                   delay_reason: "Supplier QA verification backlog at facility.",
                   expected_arrival: "2026-08-25",
                 }
-              ]).slice(0, 2).map((sh) => (
+              ]).slice(0, 2).map((sh: any) => (
                 <div key={sh.id} className="p-3.5 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-mono font-bold text-[#111827]">{sh.purchase_order_id || sh.id}</span>

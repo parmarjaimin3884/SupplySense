@@ -25,6 +25,8 @@ interface CreatePOModalProps {
 }
 
 export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: CreatePOModalProps) {
+  // 1. All Hooks declared unconditionally at top level
+  const [internalOpen, setInternalOpen] = useState(isOpen);
   const { data: supplierData } = useSupplierList({ limit: 50 });
   const { data: warehouseData } = useWarehouses();
   const createMutation = useCreatePurchaseOrder();
@@ -44,7 +46,6 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
     { id: "wh-ban", name: "Bangalore Logistics Park", warehouse_code: "WH-BAN" },
   ];
 
-  // Resolve matching warehouse based on initialProduct payload
   const resolveWarehouseId = () => {
     if (!initialProduct) return warehouses[0]?.id || "wh-del";
     const loc = (initialProduct.location || "").toLowerCase();
@@ -82,6 +83,10 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
   ]);
 
   useEffect(() => {
+    setInternalOpen(isOpen);
+  }, [isOpen]);
+
+  useEffect(() => {
     if (initialProduct) {
       setWarehouseId(resolveWarehouseId());
       setSupplierId(resolveSupplierId());
@@ -95,6 +100,14 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
       ]);
     }
   }, [initialProduct]);
+
+  const handleClose = () => {
+    setInternalOpen(false);
+    onClose();
+  };
+
+  // 2. Early return AFTER all hooks have executed
+  if (!isOpen || !internalOpen) return null;
 
   const targetWarehouseObj = warehouses.find((w: any) => w.id === warehouseId) || warehouses[0];
   const targetSupplierObj = suppliers.find((s: any) => s.id === supplierId) || suppliers[0];
@@ -136,17 +149,23 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
         })),
       });
       if (onSuccess) onSuccess();
-      onClose();
+      handleClose();
     } catch {
       // Fallback close on demo mode
       if (onSuccess) onSuccess();
-      onClose();
+      handleClose();
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-[#E5E7EB] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+    <div
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto cursor-pointer"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-[#E5E7EB] overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200 cursor-default"
+      >
         {/* Header */}
         <div className="p-5 border-b border-[#E5E7EB] bg-[#FAFAFA] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -161,8 +180,12 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
 
           <button
             type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#111827] hover:bg-[#F3F4F6] transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="p-1.5 rounded-lg text-[#9CA3AF] hover:text-[#111827] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -361,8 +384,12 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
           <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-end gap-3">
             <button
               type="button"
-              onClick={onClose}
-              className="h-9 px-4 rounded-xl border border-[#E5E7EB] text-xs font-semibold text-[#4B5563] hover:bg-[#F3F4F6] transition-all"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClose();
+              }}
+              className="h-9 px-4 rounded-xl border border-[#E5E7EB] text-xs font-semibold text-[#4B5563] hover:bg-[#F3F4F6] transition-all cursor-pointer"
             >
               Cancel
             </button>

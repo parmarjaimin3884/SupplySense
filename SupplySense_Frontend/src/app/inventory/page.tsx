@@ -33,19 +33,18 @@ export default function InventoryPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("ALL");
   const [page, setPage] = useState(1);
+  const [stockCredits, setStockCredits] = useState<Record<string, number>>({});
   const [transferredKeys, setTransferredKeys] = useState<string[]>([]);
   const limit = 10;
 
-  // Restore transferred keys from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("supplysense_transferred_keys");
-      if (saved) {
-        setTransferredKeys(JSON.parse(saved));
-      }
-    } catch {
-      // Ignore storage errors
-    }
+      const saved = localStorage.getItem("supplysense_inventory_stock_credits");
+      if (saved) setStockCredits(JSON.parse(saved));
+
+      const savedTrf = localStorage.getItem("supplysense_transferred_keys");
+      if (savedTrf) setTransferredKeys(JSON.parse(savedTrf));
+    } catch {}
   }, []);
 
   const { data: warehouses } = useWarehouses();
@@ -378,31 +377,38 @@ export default function InventoryPage() {
                     </td>
                   </tr>
                 ) : (
-                  items.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#F9FAFB] transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-[#2563EB]">
-                        <Link href={`/inventory/${item.id}`} className="hover:underline">
-                          {item.sku || item.id}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4 font-medium">
-                        <div>{item.product_name || "SKU Item"}</div>
-                        <div className="text-[10px] text-[#6B7280] font-normal">
-                          {item.category_name || "General"}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold">
-                        {item.quantity_on_hand.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono text-[#16A34A] font-bold">
-                        {item.available_quantity.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono text-[#6B7280]">
-                        {item.reserved_quantity.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-[#4B5563]">
-                        {item.warehouse_name || item.warehouse_id}
-                      </td>
+                  items.map((item) => {
+                    const itemKey = item.sku || item.id || "";
+                    const addedQty = itemKey ? (stockCredits[itemKey] || 0) : 0;
+                    const effectiveOnHand = item.quantity_on_hand + addedQty;
+                    const effectiveAvailable = item.available_quantity + addedQty;
+
+                    return (
+                      <tr key={item.id} className="hover:bg-[#F9FAFB] transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-[#2563EB]">
+                          <Link href={`/inventory/${item.id}`} className="hover:underline">
+                            {item.sku || item.id}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-4 font-medium">
+                          <div>{item.product_name || "SKU Item"}</div>
+                          <div className="text-[10px] text-[#6B7280] font-normal">
+                            {item.category_name || "General"}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold">
+                          {effectiveOnHand.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-[#16A34A] font-bold">
+                          {effectiveAvailable.toLocaleString()}
+                          {addedQty > 0 && <span className="text-[9px] block text-[#16A34A] font-semibold">(+{addedQty.toLocaleString()} GRN)</span>}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-[#6B7280]">
+                          {item.reserved_quantity.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[#4B5563]">
+                          {item.warehouse_name || item.warehouse_id}
+                        </td>
                       <td className="py-3 px-4">
                         <span
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
@@ -428,7 +434,8 @@ export default function InventoryPage() {
                         </Link>
                       </td>
                     </tr>
-                  ))
+                  );
+                })
                 )}
               </tbody>
             </table>

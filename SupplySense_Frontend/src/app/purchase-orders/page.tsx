@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -20,7 +21,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { usePurchaseOrderList, useApprovePurchaseOrder } from "@/hooks/usePurchaseOrders";
 import { CreatePOModal, type InitialProductPayload } from "@/components/purchase-orders/create-po-modal";
 
-export default function PurchaseOrdersPage() {
+function PurchaseOrdersContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +32,14 @@ export default function PurchaseOrdersPage() {
   const [approvedPoIds, setApprovedPoIds] = useState<string[]>([]);
   const [createdPoSkus, setCreatedPoSkus] = useState<string[]>([]);
   const [localOrders, setLocalOrders] = useState<any[]>([]);
+
+  // Check URL search parameters on mount
+  useEffect(() => {
+    const createParam = searchParams?.get("create") || searchParams?.get("action") || searchParams?.get("modal");
+    if (createParam === "true" || createParam === "createPO" || createParam === "new") {
+      setIsModalOpen(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -82,9 +94,44 @@ export default function PurchaseOrdersPage() {
   const handleApprovePO = async (poId: string) => {
     try {
       await approveMutation.mutateAsync(poId);
-      setApprovedPoIds((prev) => [...prev, poId]);
-    } catch {
-      setApprovedPoIds((prev) => [...prev, poId]);
+    } catch {}
+
+    setApprovedPoIds((prev) => {
+      const updated = [...prev, poId];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("supplysense_approved_po_ids", JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    const targetPO = dbOrders.find((o: any) => o.id === poId || o.poNumber === poId);
+    if (targetPO) {
+      const newShipment = {
+        id: `SHP-${targetPO.poNumber || targetPO.id}`,
+        purchase_order_id: targetPO.id,
+        po_number: targetPO.poNumber || targetPO.id,
+        product_name: targetPO.productName || "JBL AudiGen 8",
+        sku: targetPO.sku || "SKU-JBL-0092",
+        quantity: targetPO.quantity || 1671,
+        carrier: "BlueDart Express",
+        vehicle_number: "MH-04-SS-8842",
+        current_status: "IN_TRANSIT",
+        current_location: "Mumbai Western Hub Gate #3",
+        dispatch_date: new Date().toISOString().split("T")[0],
+        expected_arrival: new Date(Date.now() + 4 * 86400000).toISOString().split("T")[0],
+        delay_days: 0,
+        supplier_name: targetPO.supplier || "Samsung Electronics",
+        warehouse_name: targetPO.warehouse || "Mumbai Western Hub",
+      };
+
+      try {
+        const saved = localStorage.getItem("supplysense_local_shipments");
+        const list = saved ? JSON.parse(saved) : [];
+        if (!list.some((s: any) => s.po_number === newShipment.po_number || s.purchase_order_id === targetPO.id)) {
+          list.unshift(newShipment);
+          localStorage.setItem("supplysense_local_shipments", JSON.stringify(list));
+        }
+      } catch {}
     }
   };
 
@@ -493,10 +540,23 @@ export default function PurchaseOrdersPage() {
         onClose={() => {
           setIsModalOpen(false);
           setSelectedPOItem(null);
+          try {
+            if (window.location.search) {
+              window.history.replaceState({}, "", window.location.pathname);
+            }
+          } catch {}
         }}
         onSuccess={handlePOSuccess}
         initialProduct={selectedPOItem}
       />
     </AppShell>
+  );
+}
+
+export default function PurchaseOrdersPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-xs text-[#6B7280]">Loading Purchase Orders...</div>}>
+      <PurchaseOrdersContent />
+    </Suspense>
   );
 }
