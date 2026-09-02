@@ -10,6 +10,11 @@ export interface RiskAlert {
   severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   created_at: string;
   is_resolved: boolean;
+  product_name?: string;
+  sku?: string;
+  supplier_name?: string;
+  warehouse_name?: string;
+  impact_summary?: string;
 }
 
 export interface RiskMatrixPoint {

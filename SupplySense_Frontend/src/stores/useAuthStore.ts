@@ -138,8 +138,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       clearStoredAuth();
       if (typeof window !== "undefined") {
         localStorage.removeItem("supplysense_user");
-        document.cookie = `supplysense_authenticated=; path=/; max-age=0`;
-        document.cookie = `supplysense_role=; path=/; max-age=0`;
+        localStorage.removeItem("supplysense_auth_tokens");
+        localStorage.removeItem("supplysense_token");
+        sessionStorage.clear();
+        document.cookie = `supplysense_authenticated=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+        document.cookie = `supplysense_role=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
       }
       set({
         user: null,

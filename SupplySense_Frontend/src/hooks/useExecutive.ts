@@ -12,6 +12,7 @@ export function useExecutiveSummary() {
   return useQuery({
     queryKey: queryKeys.executive.summary,
     queryFn: executiveApi.getSummary,
+    refetchInterval: 5000,
   });
 }
 
@@ -26,5 +27,13 @@ export function useBoardReport() {
   return useQuery({
     queryKey: queryKeys.executive.boardReport,
     queryFn: executiveApi.getBoardReport,
+  });
+}
+
+export function useStrategicRisks() {
+  return useQuery({
+    queryKey: ["executive", "strategicRisks"],
+    queryFn: executiveApi.getStrategicRisks,
+    refetchInterval: 5000,
   });
 }

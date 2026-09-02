@@ -51,4 +51,5 @@ RULES FOR MERGING:
    - List key findings with category, title, detail, source agent, and severity.
    - List consolidated recommendations with action, rationale, priority, and source agents.
    - Calculate confidence based on agent outputs.
+6. ALWAYS OUTPUT HUMAN-READABLE MARKDOWN: The final answer text MUST be written in clean, professional markdown with headings, bold text, and bullet points. Never output raw JSON strings or JSON code blocks in the answer.
 """

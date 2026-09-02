@@ -19,8 +19,10 @@ export interface ShipmentItem {
   delay_reason?: string;
   supplier_name: string;
   warehouse_name: string;
+  from_warehouse_name?: string;
   accepted_quantity?: number;
   inspection_result?: string;
+  shipment_type?: "PURCHASE_ORDER" | "INTER_DEPOT";
 }
 
 export interface ShipmentCreatePayload {
@@ -40,26 +42,26 @@ export interface GRNReceivingPayload {
 }
 
 export const getShipments = async (params?: { status?: string; page?: number; limit?: number }) => {
-  const { data } = await client.get<BaseResponse<ShipmentItem[]>>("/api/v1/shipments", { params });
+  const { data } = await client.get<BaseResponse<ShipmentItem[]>>("/shipments", { params });
   return data;
 };
 
 export const createShipment = async (payload: ShipmentCreatePayload) => {
-  const { data } = await client.post<BaseResponse<ShipmentItem>>("/api/v1/shipments", payload);
+  const { data } = await client.post<BaseResponse<ShipmentItem>>("/shipments", payload);
   return data;
 };
 
 export const updateShipmentStatus = async (id: string, payload: { status: string; current_location?: string }) => {
-  const { data } = await client.patch<BaseResponse<ShipmentItem>>(`/api/v1/shipments/${id}/status`, payload);
+  const { data } = await client.patch<BaseResponse<ShipmentItem>>(`/shipments/${id}/status`, payload);
   return data;
 };
 
 export const receiveShipmentGRN = async (id: string, payload: GRNReceivingPayload) => {
-  const { data } = await client.post<BaseResponse<ShipmentItem>>(`/api/v1/shipments/${id}/receive`, payload);
+  const { data } = await client.post<BaseResponse<ShipmentItem>>(`/shipments/${id}/receive`, payload);
   return data;
 };
 
 export const simulateCarrierTelemetry = async () => {
-  const { data } = await client.post<BaseResponse<any>>("/api/v1/shipments/telemetry/simulate");
+  const { data } = await client.post<BaseResponse<any>>("/shipments/telemetry/simulate");
   return data;
 };

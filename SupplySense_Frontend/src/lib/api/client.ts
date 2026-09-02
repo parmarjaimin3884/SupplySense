@@ -71,9 +71,9 @@ apiClient.interceptors.request.use(
     if (auth?.accessToken) {
       config.headers.Authorization = `Bearer ${auth.accessToken}`;
     }
-    // Extend timeout for AI endpoints
+    // Extend timeout for AI endpoints (multi-agent synthesis)
     if (config.url?.includes("/ai/")) {
-      config.timeout = 60_000;
+      config.timeout = 180_000;
     }
     return config;
   },

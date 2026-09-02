@@ -9,12 +9,29 @@ from backend.app.ai.tools.common import tool_error_handler, format_response
 @tool_error_handler
 async def get_inventory(product_id: str, session: AsyncSession = None) -> dict:
     """
-    Get all inventory records for a specific product across all warehouses.
+    Get all inventory records for a specific product across all warehouses. Accepts product UUID, SKU, or name.
     """
+    import re
+    from sqlalchemy import or_
+    target_id = product_id
+    if not re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', str(product_id).strip()):
+        p_stmt = select(Product).where(
+            or_(
+                Product.sku.ilike(product_id),
+                Product.name.ilike(f"%{product_id}%")
+            )
+        )
+        p_res = await session.execute(p_stmt)
+        prod = p_res.scalars().first()
+        if prod:
+            target_id = prod.id
+        else:
+            return format_response(False, f"Product '{product_id}' not found.")
+
     stmt = (
         select(Inventory)
         .options(selectinload(Inventory.warehouse))
-        .where(Inventory.product_id == product_id)
+        .where(Inventory.product_id == target_id)
     )
     result = await session.execute(stmt)
     inventories = result.scalars().all()
@@ -253,7 +270,7 @@ async def get_inventory_turnover(session: AsyncSession = None) -> dict:
     return format_response(True, "Inventory turnover estimated.", data)
 
 @tool_error_handler
-async def get_recent_inventory_movements(limit: int = 50, session: AsyncSession = None) -> dict:
+async def get_recent_inventory_movements(limit: int = 15, session: AsyncSession = None) -> dict:
     """
     Get recent inventory movements (inbound, outbound, transfers).
     """

@@ -26,6 +26,7 @@ export function useLowStock() {
   return useQuery({
     queryKey: queryKeys.inventory.lowStock,
     queryFn: inventoryApi.getLowStock,
+    refetchInterval: 5000,
   });
 }
 

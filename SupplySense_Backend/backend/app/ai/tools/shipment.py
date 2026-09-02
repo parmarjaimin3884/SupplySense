@@ -8,7 +8,7 @@ from models import Shipment, PurchaseOrder, Supplier, Warehouse
 from backend.app.ai.tools.common import tool_error_handler, format_response
 
 @tool_error_handler
-async def get_all_shipments(limit: int = 50, session: AsyncSession = None) -> dict:
+async def get_all_shipments(limit: int = 15, session: AsyncSession = None) -> dict:
     """
     Get all shipments with basic info.
     """
@@ -114,12 +114,26 @@ async def get_pending_shipments(session: AsyncSession = None) -> dict:
 @tool_error_handler
 async def get_shipments_by_supplier(supplier_id: str, session: AsyncSession = None) -> dict:
     """
-    Get all shipments originating from a specific supplier.
+    Get all shipments originating from a specific supplier. Accepts supplier UUID or company name.
     """
+    import re
+    from sqlalchemy import or_
+    target_id = supplier_id
+    if not re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', str(supplier_id).strip()):
+        sup_stmt = select(Supplier).where(
+            Supplier.company_name.ilike(f"%{supplier_id}%")
+        )
+        sup_res = await session.execute(sup_stmt)
+        sup = sup_res.scalars().first()
+        if sup:
+            target_id = sup.id
+        else:
+            return format_response(False, f"Supplier '{supplier_id}' not found.")
+
     stmt = (
         select(Shipment)
         .join(PurchaseOrder)
-        .where(PurchaseOrder.supplier_id == supplier_id)
+        .where(PurchaseOrder.supplier_id == target_id)
     )
     result = await session.execute(stmt)
     shipments = result.scalars().all()
@@ -139,12 +153,29 @@ async def get_shipments_by_supplier(supplier_id: str, session: AsyncSession = No
 @tool_error_handler
 async def get_shipments_by_warehouse(warehouse_id: str, session: AsyncSession = None) -> dict:
     """
-    Get all shipments destined for a specific warehouse.
+    Get all shipments destined for a specific warehouse. Accepts warehouse UUID or code (e.g. WH-SUR, Surat).
     """
+    import re
+    from sqlalchemy import or_
+    target_id = warehouse_id
+    if not re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', str(warehouse_id).strip()):
+        wh_stmt = select(Warehouse).where(
+            or_(
+                Warehouse.warehouse_code.ilike(warehouse_id),
+                Warehouse.name.ilike(f"%{warehouse_id}%")
+            )
+        )
+        wh_res = await session.execute(wh_stmt)
+        wh = wh_res.scalars().first()
+        if wh:
+            target_id = wh.id
+        else:
+            return format_response(False, f"Warehouse '{warehouse_id}' not found.")
+
     stmt = (
         select(Shipment)
         .join(PurchaseOrder)
-        .where(PurchaseOrder.warehouse_id == warehouse_id)
+        .where(PurchaseOrder.warehouse_id == target_id)
     )
     result = await session.execute(stmt)
     shipments = result.scalars().all()

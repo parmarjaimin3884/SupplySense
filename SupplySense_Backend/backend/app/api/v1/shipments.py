@@ -9,8 +9,9 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update, delete
+from sqlalchemy.orm import joinedload
 
-from models import Shipment, GoodsReceived, PurchaseOrder, PurchaseOrderItem, Inventory, Product, Warehouse, Supplier
+from models import Shipment, GoodsReceived, PurchaseOrder, PurchaseOrderItem, Inventory, Product, Warehouse, Supplier, StockTransfer
 from backend.app.schemas.shipment import (
     ShipmentResponse,
     ShipmentCreatePayload,
@@ -166,6 +167,54 @@ async def list_shipments(
                 warehouse_name=wh.name if wh else "Mumbai Western Hub",
                 accepted_quantity=grn.accepted_quantity if grn else None,
                 inspection_result=grn.inspection_result if grn else None,
+            )
+        )
+
+    # ──── Inject inter-depot stock transfers as shipment rows ────────────────────
+    trf_stmt = (
+        select(StockTransfer)
+        .options(
+            joinedload(StockTransfer.from_warehouse),
+            joinedload(StockTransfer.to_warehouse),
+            joinedload(StockTransfer.product),
+        )
+        .order_by(StockTransfer.transfer_date.desc())
+        .limit(20)
+    )
+    # If filtering by status, only include matching transfers
+    if status_filter and status_filter.lower() != "all":
+        trf_stmt = trf_stmt.where(StockTransfer.status.ilike(status_filter))
+
+    trf_res = await db.execute(trf_stmt)
+    transfers = trf_res.scalars().all()
+
+    carriers_pool = ["Gati Express", "VRL Logistics", "BlueDart Inter-Depot"]
+    today = date.today()
+    for idx, trf in enumerate(transfers):
+        from_wh = trf.from_warehouse
+        to_wh = trf.to_warehouse
+        prod = trf.product
+        trf_id_short = str(trf.id)[:8].upper()
+
+        items.append(
+            ShipmentResponse(
+                id=str(trf.id),
+                purchase_order_id=str(trf.id),
+                po_number=f"TRF-{trf_id_short}",
+                product_name=prod.name if prod else "Transfer Item",
+                sku=prod.sku if prod else "SKU-TRF",
+                quantity=trf.quantity,
+                carrier=carriers_pool[idx % len(carriers_pool)],
+                vehicle_number=f"GJ-05-TRF-{idx + 1:04d}",
+                current_status=trf.status or "IN_TRANSIT",
+                current_location=f"{from_wh.name if from_wh else 'Source'} → {to_wh.name if to_wh else 'Dest'} Highway Corridor",
+                dispatch_date=trf.transfer_date or today,
+                expected_arrival=(trf.transfer_date or today) + timedelta(days=3),
+                delay_days=0,
+                supplier_name=f"Inter-Depot ({from_wh.warehouse_code if from_wh else 'SRC'} → {to_wh.warehouse_code if to_wh else 'DST'})",
+                warehouse_name=to_wh.name if to_wh else "Destination Hub",
+                from_warehouse_name=from_wh.name if from_wh else "Source Hub",
+                shipment_type="INTER_DEPOT",
             )
         )
 

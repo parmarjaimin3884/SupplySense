@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -31,9 +31,11 @@ import {
   Zap,
   FileText,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRole } from "@/context/role-context";
 import { useNotifications } from "@/context/notification-context";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { getStoredAuth } from "@/lib/api/client";
 import { CommandPalette } from "./command-palette";
 import { NotificationDrawer } from "./notification-drawer";
 import { NotificationToast } from "@/components/notifications/notification-toast";
@@ -64,8 +66,50 @@ export function AppShell({ children }: AppShellProps) {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
+  const queryClient = useQueryClient();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [authVerified, setAuthVerified] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    await queryClient.invalidateQueries();
+    setTimeout(() => setIsSyncing(false), 600);
+  };
+
+  useEffect(() => {
+    const verifyAuthentication = () => {
+      const auth = getStoredAuth();
+      const hasCookie =
+        typeof document !== "undefined" &&
+        document.cookie.includes("supplysense_authenticated=true");
+      const hasStoredUser =
+        typeof window !== "undefined" &&
+        localStorage.getItem("supplysense_user");
+
+      if (!auth?.accessToken && !hasCookie && !hasStoredUser) {
+        setAuthVerified(false);
+        window.location.replace("/login");
+        return false;
+      }
+
+      setAuthVerified(true);
+      return true;
+    };
+
+    verifyAuthentication();
+
+    // Prevent Back-Forward Cache (BFCache) from displaying cached protected state after logout
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        verifyAuthentication();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [pathname]);
 
   // Grouped Navigation Sections (Cal.com & Linear Information Architecture)
   const navSections: NavSection[] = [
@@ -112,6 +156,17 @@ export function AppShell({ children }: AppShellProps) {
       ],
     },
   ].filter((sec) => sec.role === "all" || (sec.role === "admin" && isAdmin));
+
+  if (!authVerified) {
+    return (
+      <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2.5">
+          <div className="h-6 w-6 rounded-full border-2 border-[#111827] border-t-transparent animate-spin" />
+          <p className="text-xs font-semibold text-[#6B7280]">Verifying secure session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-[#111827] flex flex-col">
@@ -175,6 +230,20 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Right: Actions, Role Switcher, Notifications & User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Live Real-Time Telemetry Pulse Indicator (Interactive Sync) */}
+          <button
+            type="button"
+            onClick={handleManualSync}
+            title="Click to immediately sync all live database metrics"
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#16A34A]/25 bg-[#F0FDF4] text-[11px] font-semibold text-[#16A34A] shadow-2xs hover:bg-[#DCFCE7] active:scale-95 transition-all cursor-pointer"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-[#16A34A] opacity-75 ${isSyncing ? "duration-300" : ""}`}></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#16A34A]"></span>
+            </span>
+            <span>{isSyncing ? "Syncing..." : "Live Sync Active"}</span>
+          </button>
+
           {/* Authenticated Role Badge (Read-Only) */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] text-xs font-semibold text-[#111827] shadow-2xs">
             {isAdmin ? (
@@ -269,7 +338,7 @@ export function AppShell({ children }: AppShellProps) {
                     onClick={async () => {
                       setUserDropdownOpen(false);
                       await logout();
-                      window.location.href = "/login";
+                      window.location.replace("/login");
                     }}
                     className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-xl text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
                   >

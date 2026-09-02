@@ -35,6 +35,7 @@ export default function InventoryPage() {
   const [page, setPage] = useState(1);
   const [stockCredits, setStockCredits] = useState<Record<string, number>>({});
   const [transferredKeys, setTransferredKeys] = useState<string[]>([]);
+  const [localTransfers, setLocalTransfers] = useState<any[]>([]);
   const limit = 10;
 
   useEffect(() => {
@@ -44,6 +45,9 @@ export default function InventoryPage() {
 
       const savedTrf = localStorage.getItem("supplysense_transferred_keys");
       if (savedTrf) setTransferredKeys(JSON.parse(savedTrf));
+
+      const savedTrfList = localStorage.getItem("supplysense_local_transfers");
+      if (savedTrfList) setLocalTransfers(JSON.parse(savedTrfList));
     } catch {}
   }, []);
 
@@ -63,6 +67,36 @@ export default function InventoryPage() {
   const { data: lowStockItems } = useLowStock();
 
   const handleInitiateTransfer = async (rec: any, key: string) => {
+    // 1. Instant optimistic state update
+    setTransferredKeys((prev) => {
+      const updated = Array.from(new Set([...prev, key]));
+      try {
+        localStorage.setItem("supplysense_transferred_keys", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 2. Add to local dispatches immediately so it renders and persists on refresh
+    const newTrf = {
+      id: `TRF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      product_name: rec.product_name || "Audio / Tech Component",
+      sku: rec.sku || "SKU-TRF",
+      quantity: rec.recommended_transfer_qty || 1500,
+      from_warehouse_name: rec.from_warehouse_name || "Surat Central",
+      to_warehouse_name: rec.to_warehouse_name || "Mumbai Logistics Hub",
+      status: "IN_TRANSIT",
+      created_at: new Date().toISOString(),
+    };
+
+    setLocalTransfers((prev) => {
+      const updated = [newTrf, ...prev];
+      try {
+        localStorage.setItem("supplysense_local_transfers", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    // 3. Trigger backend mutation asynchronously
     try {
       await initiateMutation.mutateAsync({
         from_warehouse_id: rec.from_warehouse_id || rec.from_warehouse_code,
@@ -71,21 +105,11 @@ export default function InventoryPage() {
         quantity: rec.recommended_transfer_qty,
         reason: rec.reason,
       });
-      const updated = [...transferredKeys, key];
-      setTransferredKeys(updated);
-      try {
-        localStorage.setItem("supplysense_transferred_keys", JSON.stringify(updated));
-      } catch {}
       refetchTransfers();
-    } catch (err: any) {
-      const updated = [...transferredKeys, key];
-      setTransferredKeys(updated);
-      try {
-        localStorage.setItem("supplysense_transferred_keys", JSON.stringify(updated));
-      } catch {}
-    }
+    } catch {}
   };
 
+  const allActiveTransfers = [...localTransfers, ...(activeTransfers || [])];
   const items: InventoryItem[] = inventoryData?.data || [];
   const meta = inventoryData?.meta;
 
@@ -253,7 +277,7 @@ export default function InventoryPage() {
           </div>
 
           {/* Active Dispatched Transfers Table */}
-          {(activeTransfers || []).length > 0 && (
+          {allActiveTransfers.length > 0 && (
             <div className="p-4 rounded-xl bg-white border border-[#E5E7EB] space-y-2.5 shadow-2xs mt-4">
               <div className="flex items-center justify-between text-xs font-bold text-[#111827]">
                 <div className="flex items-center gap-2">
@@ -261,15 +285,17 @@ export default function InventoryPage() {
                   <span>Active Inter-Depot Dispatches in Transit</span>
                 </div>
                 <span className="font-mono text-[10px] text-[#059669] bg-[#F0FDF4] px-2 py-0.5 rounded border border-[#059669]/20">
-                  {activeTransfers?.length} TRANSIT PIPELINE
+                  {allActiveTransfers.length} TRANSIT PIPELINE
                 </span>
               </div>
 
               <div className="divide-y divide-[#F3F4F6] text-xs">
-                {(activeTransfers || []).slice(0, 3).map((trf) => (
+                {allActiveTransfers.slice(0, 5).map((trf: any) => (
                   <div key={trf.id} className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-[#2563EB]">TRF-{trf.id.substring(0, 8).toUpperCase()}</span>
+                      <span className="font-mono font-bold text-[#2563EB]">
+                        {trf.id.startsWith("TRF-") ? trf.id : `TRF-${trf.id.substring(0, 8).toUpperCase()}`}
+                      </span>
                       <span className="text-[#111827] font-semibold">{trf.product_name}</span>
                       <span className="text-[10px] font-mono text-[#6B7280]">({trf.quantity} units)</span>
                     </div>
@@ -277,7 +303,7 @@ export default function InventoryPage() {
                     <div className="flex items-center gap-3 text-[11px] text-[#4B5563]">
                       <span>{trf.from_warehouse_name} ➔ {trf.to_warehouse_name}</span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB]">
-                        {trf.status}
+                        {trf.status || "IN_TRANSIT"}
                       </span>
                     </div>
                   </div>

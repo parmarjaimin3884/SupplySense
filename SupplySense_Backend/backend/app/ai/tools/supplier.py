@@ -9,9 +9,21 @@ from backend.app.ai.tools.common import tool_error_handler, format_response
 @tool_error_handler
 async def get_supplier(supplier_id: str, session: AsyncSession = None) -> dict:
     """
-    Get detailed information about a specific supplier.
+    Get detailed information about a specific supplier. Accepts supplier UUID or company name.
     """
-    stmt = select(Supplier).where(Supplier.id == supplier_id)
+    import re
+    from sqlalchemy import or_
+    target_id = supplier_id
+    if not re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', str(supplier_id).strip()):
+        sup_stmt = select(Supplier).where(Supplier.company_name.ilike(f"%{supplier_id}%"))
+        sup_res = await session.execute(sup_stmt)
+        sup = sup_res.scalars().first()
+        if sup:
+            target_id = sup.id
+        else:
+            return format_response(False, f"Supplier '{supplier_id}' not found.")
+
+    stmt = select(Supplier).where(Supplier.id == target_id)
     result = await session.execute(stmt)
     supplier = result.scalar_one_or_none()
     

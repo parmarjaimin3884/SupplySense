@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Boxes,
@@ -74,7 +75,63 @@ const SUGGESTED_QUESTIONS = [
   },
 ];
 
-export default function AIAssistantPage() {
+function formatMessageContent(content: string): string {
+  if (!content) return "";
+  let text = content.trim();
+
+  // Strip ```json ... ``` or ``` ... ``` wrapper
+  if (text.startsWith("```json")) {
+    text = text.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+  } else if (text.startsWith("```")) {
+    text = text.replace(/^```\s*/, "").replace(/\s*```$/, "");
+  }
+
+  // Parse structured JSON objects if present
+  if (text.startsWith("{") && text.endsWith("}")) {
+    try {
+      const data = JSON.parse(text);
+      if (data.issue || data.analysis || data.recommendations || data.next_steps) {
+        let formatted = "";
+        if (data.issue) {
+          formatted += `📌 **Issue Identified:**\n${data.issue}\n\n`;
+        }
+        if (data.analysis?.description) {
+          formatted += `📊 **Analysis:**\n${data.analysis.description}\n\n`;
+        }
+        if (data.analysis?.business_impact && Array.isArray(data.analysis.business_impact)) {
+          formatted += `⚠️ **Business Impact:**\n` + data.analysis.business_impact.map((b: string) => `• ${b}`).join("\n") + "\n\n";
+        }
+        if (data.recommendations && Array.isArray(data.recommendations)) {
+          formatted += `💡 **Recommended Operational Actions:**\n`;
+          data.recommendations.forEach((rec: any, idx: number) => {
+            if (typeof rec === "string") {
+              formatted += `${idx + 1}. ${rec}\n`;
+            } else if (typeof rec === "object") {
+              const act = rec.action || "Action";
+              const det = rec.details || rec.rationale || "";
+              const out = rec.expected_outcome ? `\n   *Expected Outcome:* ${rec.expected_outcome}` : "";
+              formatted += `${idx + 1}. **${act}**: ${det}${out}\n\n`;
+            }
+          });
+        }
+        if (data.next_steps && Array.isArray(data.next_steps)) {
+          formatted += `🚀 **Next Steps:**\n` + data.next_steps.map((ns: string) => `• ${ns}`).join("\n") + "\n";
+        }
+        return formatted.trim();
+      }
+    } catch {
+      // Fallback to original text if JSON parsing fails
+    }
+  }
+
+  return content;
+}
+
+function AIAssistantContent() {
+  const searchParams = useSearchParams();
+  const autoPrompt = searchParams.get("q") || searchParams.get("prompt");
+  const autoSentRef = useRef(false);
+
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputQuery, setInputQuery] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -143,6 +200,13 @@ export default function AIAssistantPage() {
       setIsTyping(false);
     }
   };
+
+  useEffect(() => {
+    if (autoPrompt && !autoSentRef.current) {
+      autoSentRef.current = true;
+      handleSend(autoPrompt);
+    }
+  }, [autoPrompt]);
 
   const copyMessage = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -225,7 +289,7 @@ export default function AIAssistantPage() {
                 >
                   {/* Message Content */}
                   <div className="leading-relaxed whitespace-pre-line font-normal select-text">
-                    {msg.content}
+                    {formatMessageContent(msg.content)}
                   </div>
 
                   {/* Assistant Footer Info (Sources, Confidence & Actions) */}
@@ -389,5 +453,13 @@ export default function AIAssistantPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+export default function AIAssistantPage() {
+  return (
+    <Suspense fallback={<div>Loading Assistant...</div>}>
+      <AIAssistantContent />
+    </Suspense>
   );
 }

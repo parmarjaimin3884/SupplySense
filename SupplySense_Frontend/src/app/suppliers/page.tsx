@@ -53,6 +53,14 @@ export default function SuppliersDirectoryPage() {
   const filteredSuppliers: Supplier[] = supplierData?.data || [];
   const meta = supplierData?.meta;
 
+  const lowestSupplier = filteredSuppliers.length > 0
+    ? [...filteredSuppliers].sort((a, b) => Number(a.reliability_score || 0) - Number(b.reliability_score || 0))[0]
+    : null;
+
+  const highestSupplier = filteredSuppliers.length > 0
+    ? [...filteredSuppliers].sort((a, b) => Number(b.reliability_score || 0) - Number(a.reliability_score || 0))[0]
+    : null;
+
   return (
     <AppShell>
       <div className="space-y-8">
@@ -86,59 +94,69 @@ export default function SuppliersDirectoryPage() {
           </div>
         </div>
 
-        {/* AI Supplier Intelligence Highlight */}
-        <div className="rounded-2xl border border-[#D97706]/30 bg-[#FFFBEB]/30 p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#D97706]">
-              <Sparkles className="h-4 w-4" />
-              <span>SUPPLIER INTELLIGENCE ALERT</span>
+        {/* Dynamic AI Supplier Intelligence Alert */}
+        {lowestSupplier && highestSupplier && (
+          <div className="rounded-2xl border border-[#D97706]/30 bg-[#FFFBEB]/30 p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#D97706]">
+                <Sparkles className="h-4 w-4" />
+                <span>SUPPLIER INTELLIGENCE ALERT</span>
+              </div>
+              <p className="text-xs text-[#374151] leading-relaxed">
+                &ldquo;{lowestSupplier.company_name} reliability is currently at{" "}
+                <strong className="text-[#DC2626]">{Number(lowestSupplier.reliability_score || 60).toFixed(1)}%</strong> with an average delay of{" "}
+                <strong>+{Number(lowestSupplier.average_delay || 5.2).toFixed(1)} days</strong>. Recommended top-tier alternate:{" "}
+                <strong className="text-[#111827]">
+                  {highestSupplier.company_name} ({Number(highestSupplier.reliability_score || 99).toFixed(1)}% On-Time)
+                </strong>
+                .&rdquo;
+              </p>
             </div>
-            <p className="text-xs text-[#374151] leading-relaxed">
-              &ldquo;Supplier ABC reliability decreased during the last 60 days (delivery reliability dropped 18% with +5.2 days lead-time drift). Recommended alternate: <strong className="text-[#111827]">Kyoto Micro Tech (97.8% On-Time)</strong>.&rdquo;
-            </p>
+
+            <Link
+              href={`/suppliers/${lowestSupplier.id}`}
+              className="h-8 px-3 rounded-lg bg-[#111827] text-white text-xs font-semibold hover:bg-black flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer"
+            >
+              <span>Inspect {lowestSupplier.company_name}</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
+        )}
 
-          <Link
-            href="/suppliers/sup-abc"
-            className="h-8 px-3 rounded-lg bg-[#111827] text-white text-xs font-semibold hover:bg-black flex items-center gap-1.5 shadow-xs transition-all shrink-0"
-          >
-            <span>Inspect ABC Electronics</span>
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
-
-        {/* Active Sourcing Volume Reallocations Widget */}
-        {reallocatedCount > 0 && (
+        {/* Dynamic Active Sourcing Volume Reallocations Widget */}
+        {lowestSupplier && highestSupplier && (
           <div className="rounded-2xl border border-[#059669]/25 bg-gradient-to-br from-[#F0FDF4]/80 via-white to-[#EFF6FF]/60 p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between border-b border-[#059669]/15 pb-2.5">
               <div className="flex items-center gap-2 text-xs font-bold text-[#059669]">
                 <Zap className="h-4 w-4 text-[#059669]" />
-                <span>ACTIVE VENDOR VOLUME REALLOCATIONS ({reallocatedCount} ACTIVE)</span>
+                <span>ACTIVE VENDOR VOLUME REALLOCATIONS (DUAL-SOURCING ACTIVE)</span>
               </div>
               <span className="text-[10px] font-mono font-bold bg-[#059669] text-white px-2 py-0.5 rounded">
-                DUAL-SOURCING ACTIVE
+                LIVE DUAL-SOURCING
               </span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-white border border-[#E5E7EB] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-2xs">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[#DC2626]">ABC Electronics Corp (Primary Vendor)</span>
+                  <span className="font-semibold text-[#DC2626]">{lowestSupplier.company_name} (Underperforming)</span>
                   <ArrowRight className="h-3.5 w-3.5 text-[#059669]" />
-                  <span className="font-bold text-[#059669]">Kyoto Micro Tech Pvt Ltd (Backup Vendor)</span>
+                  <span className="font-bold text-[#059669]">{highestSupplier.company_name} (Backup Vendor)</span>
                 </div>
                 <p className="text-[11px] text-[#4B5563]">
-                  Shifted 100% PO volume allocation. Improved delivery SLA from <strong>82.0% ➔ 97.8% (+15.8% Gain)</strong> with lead time cut from 14d ➔ 3d.
+                  Reallocated PO volume allocation. SLA improvement from{" "}
+                  <strong>{Number(lowestSupplier.reliability_score || 60).toFixed(1)}% ➔ {Number(highestSupplier.reliability_score || 99).toFixed(1)}% (+{(Number(highestSupplier.reliability_score || 99) - Number(lowestSupplier.reliability_score || 60)).toFixed(1)}% Gain)</strong>{" "}
+                  with lead time reduced to {highestSupplier.lead_time || 11} days.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-[#F0FDF4] text-[#059669] border border-[#059669]/20 flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> REALLOCATION COMPLETED
+                  <CheckCircle2 className="h-3.5 w-3.5" /> REALLOCATION ACTIVE
                 </span>
                 <Link
-                  href="/suppliers/sup-abc"
-                  className="text-xs font-semibold text-[#2563EB] hover:underline"
+                  href={`/suppliers/${lowestSupplier.id}`}
+                  className="text-xs font-semibold text-[#2563EB] hover:underline cursor-pointer"
                 >
                   View Details
                 </Link>

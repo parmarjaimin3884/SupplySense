@@ -21,4 +21,9 @@ export const executiveApi = {
     const response = await apiClient.get<BaseResponse<BoardReport>>("/executive/board-report");
     return response.data.data;
   },
+
+  getStrategicRisks: async (): Promise<any[]> => {
+    const response = await apiClient.get<BaseResponse<any[]>>("/executive/strategic-risks");
+    return response.data.data;
+  },
 };

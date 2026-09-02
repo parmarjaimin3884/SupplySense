@@ -471,6 +471,7 @@ function PurchaseOrdersContent() {
                   <th className="py-3 px-4">PO NUMBER</th>
                   <th className="py-3 px-4">PRODUCT / SKU</th>
                   <th className="py-3 px-4">SUPPLIER</th>
+                  <th className="py-3 px-4">DESTINATION WAREHOUSE</th>
                   <th className="py-3 px-4 text-right">QUANTITY (Units)</th>
                   <th className="py-3 px-4 text-right">TOTAL COST (in ₹)</th>
                   <th className="py-3 px-4">EXPECTED DELIVERY</th>
@@ -488,7 +489,13 @@ function PurchaseOrdersContent() {
                       <div>{po.productName}</div>
                       <div className="text-[10px] font-mono text-[#6B7280]">{po.sku}</div>
                     </td>
-                    <td className="py-3.5 px-4 text-[#4B5563]">{po.supplier}</td>
+                    <td className="py-3.5 px-4 text-[#4B5563] font-medium">{po.supplier}</td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-1.5 font-semibold text-[#111827]">
+                        <span className="w-2 h-2 rounded-full bg-[#2563EB] shrink-0"></span>
+                        <span>{po.warehouse || "Mumbai Western Hub"}</span>
+                      </div>
+                    </td>
                     <td className="py-3.5 px-4 text-right font-mono font-bold">
                       {po.quantity.toLocaleString()}
                     </td>

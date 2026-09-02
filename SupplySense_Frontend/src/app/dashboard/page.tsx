@@ -26,6 +26,7 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { useExecutiveSummary } from "@/hooks/useExecutive";
 import { useDashboardSummary, useDashboardKPIs, useDashboardAlerts } from "@/hooks/useDashboard";
 import { useLowStock } from "@/hooks/useInventory";
 import { useHighRiskSuppliers } from "@/hooks/useSuppliers";
@@ -41,6 +42,7 @@ export default function PrimaryIntelligenceDashboard() {
 
   // ── API Hooks ──
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary();
+  const { data: execSummary } = useExecutiveSummary();
   const { data: kpis, isLoading: kpisLoading, error: kpisError, refetch: refetchKpis } = useDashboardKPIs();
   const { data: alerts, isLoading: alertsLoading } = useDashboardAlerts();
   const { data: lowStockItems } = useLowStock();
@@ -55,6 +57,20 @@ export default function PrimaryIntelligenceDashboard() {
   };
 
   const isDrafted = (skuId: string) => draftedPOs.includes(skuId);
+
+  const formatCurrency = (val: number) => {
+    if (!val || isNaN(val)) return "₹14.18 Cr";
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(2)} Lakh`;
+    return `₹${val.toLocaleString("en-IN")}`;
+  };
+
+  const rawVal = summary ? Number(summary.total_inventory_value) : 141777180;
+  const dynamicBriefing = execSummary?.executive_narrative || (
+    lowStockItems && lowStockItems.length > 0
+      ? `Current supply chain operations remain active (${summary?.avg_warehouse_utilization_pct || 94.2}% hub utilization). ${lowStockItems[0]?.product_name || "Core inventory"} at ${lowStockItems[0]?.warehouse_name || "Mumbai Western Hub"} requires replenishment within 48 hours to avoid stockout.`
+      : `Enterprise multi-depot supply chain network is operating resiliently with ${summary?.avg_warehouse_utilization_pct || 96.0}% network utilization across 5 regional hubs.`
+  );
 
   return (
     <AppShell>
@@ -103,7 +119,7 @@ export default function PrimaryIntelligenceDashboard() {
               <span>EXECUTIVE BRIEFING</span>
             </div>
             <p className="text-sm font-semibold text-[#111827] leading-relaxed">
-              &ldquo;Current supply chain health remains stable (94.2%). Two suppliers require attention due to increased lead-time variance. MacBook Pro inventory requires replenishment within 48 hours to avoid stockout.&rdquo;
+              &ldquo;{dynamicBriefing}&rdquo;
             </p>
             <div className="text-[11px] text-[#6B7280] pt-0.5">
               Synthesized from active inventory velocity, shipment GPS logs, and supplier scorecard histories.
@@ -128,11 +144,13 @@ export default function PrimaryIntelligenceDashboard() {
               <span className="font-semibold">Inventory Health</span>
               <ShieldCheck className="h-4 w-4 text-[#16A34A]" />
             </div>
-            <div className="text-2xl font-bold font-mono text-[#111827]">{summary?.forecast_accuracy_pct ?? 98.4}%</div>
+            <div className="text-2xl font-bold font-mono text-[#111827]">{summary?.forecast_accuracy_pct ?? 94.2}%</div>
             <div className="text-[11px] text-[#16A34A] font-semibold flex items-center">
               <TrendingUp className="h-3 w-3 mr-0.5" /> Optimal buffer coverage
             </div>
-            <div className="text-[10px] text-[#6B7280]">1 SKU at critical threshold</div>
+            <div className="text-[10px] text-[#6B7280]">
+              {summary?.stockout_risk_count ? `${summary.stockout_risk_count} SKUs at critical threshold` : "All buffers within threshold"}
+            </div>
           </div>
 
           {/* Widget 7: Supply Chain Health Score */}
@@ -145,7 +163,9 @@ export default function PrimaryIntelligenceDashboard() {
             <div className="text-[11px] text-[#2563EB] font-semibold flex items-center">
               <TrendingUp className="h-3 w-3 mr-0.5" /> Stable network resilience
             </div>
-            <div className="text-[10px] text-[#6B7280]">88.5% on-time fulfillment</div>
+            <div className="text-[10px] text-[#6B7280]">
+              {summary?.active_shipments_count ? `${summary.active_shipments_count} active shipments in transit` : "Multi-hub operations synchronized"}
+            </div>
           </div>
 
           {/* Active Inventory Valuation */}
@@ -154,11 +174,13 @@ export default function PrimaryIntelligenceDashboard() {
               <span className="font-semibold">Monitored Inventory</span>
               <Boxes className="h-4 w-4 text-[#9CA3AF]" />
             </div>
-            <div className="text-2xl font-bold font-mono text-[#111827]">₹{summary ? Number(summary.total_inventory_value).toLocaleString('en-IN') : '14,250,890.50'}</div>
+            <div className="text-2xl font-bold font-mono text-[#111827]">{formatCurrency(rawVal)}</div>
             <div className="text-[11px] text-[#16A34A] font-semibold flex items-center">
               <TrendingUp className="h-3 w-3 mr-0.5" /> 5 core categories active
             </div>
-            <div className="text-[10px] text-[#6B7280]">2,500 total active units across 5 hubs</div>
+            <div className="text-[10px] text-[#6B7280]">
+              {networkCapacity ? `${networkCapacity.total_used_capacity?.toLocaleString()} total units across 5 hubs` : "Active inventory across 5 hubs"}
+            </div>
           </div>
 
           {/* Open Purchase Orders */}
@@ -167,11 +189,11 @@ export default function PrimaryIntelligenceDashboard() {
               <span className="font-semibold">Active POs in Pipeline</span>
               <Truck className="h-4 w-4 text-[#9CA3AF]" />
             </div>
-            <div className="text-2xl font-bold font-mono text-[#111827]">{summary?.open_purchase_orders_count ?? 12} Orders</div>
+            <div className="text-2xl font-bold font-mono text-[#111827]">{summary?.open_purchase_orders_count ?? 3} Orders</div>
             <div className="text-[11px] text-[#D97706] font-semibold flex items-center">
-              <AlertTriangle className="h-3 w-3 mr-0.5" /> 1 shipment with lead-time drift
+              <AlertTriangle className="h-3 w-3 mr-0.5" /> {delayedShipments.length > 0 ? `${delayedShipments.length} shipment with lead-time drift` : "On schedule"}
             </div>
-            <div className="text-[10px] text-[#6B7280]">₹3,71,760 committed capital</div>
+            <div className="text-[10px] text-[#6B7280]">Committed procurement capital</div>
           </div>
         </section>
 
@@ -491,14 +513,14 @@ export default function PrimaryIntelligenceDashboard() {
               { warehouse_id: "3", name: "Delhi Depot", warehouse_code: "WH-DEL", capacity: 46401, used_units: 41788, utilization_percentage: 90.06, status: "NEAR_CAPACITY" as const },
               { warehouse_id: "4", name: "Surat Central", warehouse_code: "WH-SUR", capacity: 44398, used_units: 20818, utilization_percentage: 46.89, status: "OPTIMAL" as const },
               { warehouse_id: "5", name: "Bangalore Hub", warehouse_code: "WH-BAN", capacity: 23732, used_units: 15126, utilization_percentage: 63.74, status: "OPTIMAL" as const },
-            ]).map((wh) => {
+            ]).map((wh, idx) => {
               const util = Number(wh.utilization_percentage) || 50;
               const isHigh = util > 85;
               const isOptimal = util >= 40 && util <= 85;
 
               return (
                 <div
-                  key={wh.warehouse_id}
+                  key={`${wh.warehouse_id || wh.warehouse_code || "wh"}-${idx}`}
                   className={`p-3.5 rounded-xl border transition-all ${
                     isHigh
                       ? "border-[#DC2626]/25 bg-[#FEF2F2]/10"

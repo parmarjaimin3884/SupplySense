@@ -218,24 +218,26 @@ async def initiate_stock_transfer(
 ) -> BaseResponse[StockTransferResponse]:
     """Initiates an inter-depot transfer, creating the transfer record and updating reservations."""
     
-    # 1. Resolve source and destination warehouses
-    w_stmt = select(Warehouse).where(
-        or_(
-            Warehouse.id == payload.from_warehouse_id,
-            Warehouse.warehouse_code == payload.from_warehouse_id
+    # 1. Resolve source and destination warehouses safely
+    import re
+    is_uuid_pat = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+
+    def get_wh_condition(val: str):
+        val_str = str(val).strip()
+        if is_uuid_pat.match(val_str):
+            return Warehouse.id == val_str
+        return or_(
+            Warehouse.warehouse_code == val_str,
+            Warehouse.name.ilike(f"%{val_str}%")
         )
-    )
+
+    w_stmt = select(Warehouse).where(get_wh_condition(payload.from_warehouse_id))
     w_res = await db.execute(w_stmt)
     from_wh = w_res.scalars().first()
     if not from_wh:
         raise HTTPException(status_code=404, detail=f"Source warehouse '{payload.from_warehouse_id}' not found.")
     
-    to_stmt = select(Warehouse).where(
-        or_(
-            Warehouse.id == payload.to_warehouse_id,
-            Warehouse.warehouse_code == payload.to_warehouse_id
-        )
-    )
+    to_stmt = select(Warehouse).where(get_wh_condition(payload.to_warehouse_id))
     to_res = await db.execute(to_stmt)
     to_wh = to_res.scalars().first()
     if not to_wh:
@@ -244,13 +246,18 @@ async def initiate_stock_transfer(
     if str(from_wh.id) == str(to_wh.id):
         raise HTTPException(status_code=400, detail="Source and destination warehouses cannot be the same.")
 
-    # 2. Resolve product
-    p_stmt = select(Product).where(
-        or_(
-            Product.id == payload.product_id,
-            Product.sku == payload.product_id
+    # 2. Resolve product safely
+    p_val_str = str(payload.product_id).strip()
+    if is_uuid_pat.match(p_val_str):
+        p_stmt = select(Product).where(Product.id == p_val_str)
+    else:
+        p_stmt = select(Product).where(
+            or_(
+                Product.sku == p_val_str,
+                Product.sku.ilike(f"%{p_val_str}%"),
+                Product.name.ilike(f"%{p_val_str}%")
+            )
         )
-    )
     p_res = await db.execute(p_stmt)
     prod = p_res.scalars().first()
     if not prod:

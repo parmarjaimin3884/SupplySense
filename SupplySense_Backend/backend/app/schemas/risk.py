@@ -17,6 +17,11 @@ class AIRiskAlertResponse(BaseModel):
     severity: str = Field(..., description="CRITICAL, HIGH, MEDIUM, LOW.")
     created_at: date = Field(..., description="Alert creation date.")
     is_resolved: bool = Field(default=False, description="Resolution status.")
+    product_name: Optional[str] = Field(default=None, description="Affected product name.")
+    sku: Optional[str] = Field(default=None, description="Affected SKU.")
+    supplier_name: Optional[str] = Field(default=None, description="Associated supplier.")
+    warehouse_name: Optional[str] = Field(default="Surat Central Warehouse", description="Target facility.")
+    impact_summary: Optional[str] = Field(default=None, description="Quantified risk impact summary.")
 
 
 class RiskMatrixPoint(BaseModel):

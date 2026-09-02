@@ -63,11 +63,7 @@ class LLMProvider(str, Enum):
 
     GROQ = "groq"
     OPENAI = "openai"
-    # ── Future providers (uncomment when ready) ──────────────────────
-    # ANTHROPIC = "anthropic"
-    # GEMINI = "gemini"
-    # OLLAMA = "ollama"
-    # AZURE_OPENAI = "azure_openai"
+    GEMINI = "gemini"
 
 
 # =====================================================================
@@ -416,21 +412,13 @@ class LLMFactory:
         _key_map: Dict[str, Optional[str]] = {
             LLMProvider.GROQ.value: settings.GROQ_API_KEY,
             LLMProvider.OPENAI.value: settings.OPENAI_API_KEY,
-            # ── Future providers ─────────────────────────────────
-            # LLMProvider.ANTHROPIC.value: settings.ANTHROPIC_API_KEY,
-            # LLMProvider.GEMINI.value: settings.GEMINI_API_KEY,
-            # LLMProvider.OLLAMA.value: None,  # local — no key needed
-            # LLMProvider.AZURE_OPENAI.value: settings.AZURE_OPENAI_API_KEY,
+            LLMProvider.GEMINI.value: settings.GEMINI_API_KEY,
         }
 
         _model_map: Dict[str, str] = {
             LLMProvider.GROQ.value: settings.GROQ_MODEL,
             LLMProvider.OPENAI.value: settings.OPENAI_MODEL,
-            # ── Future providers ─────────────────────────────────
-            # LLMProvider.ANTHROPIC.value: settings.ANTHROPIC_MODEL,
-            # LLMProvider.GEMINI.value: settings.GEMINI_MODEL,
-            # LLMProvider.OLLAMA.value: settings.OLLAMA_MODEL,
-            # LLMProvider.AZURE_OPENAI.value: settings.AZURE_OPENAI_MODEL,
+            LLMProvider.GEMINI.value: settings.GEMINI_MODEL,
         }
 
         # Validate provider is supported
@@ -486,11 +474,7 @@ class LLMFactory:
         _provider_factories = {
             LLMProvider.GROQ: cls._create_groq,
             LLMProvider.OPENAI: cls._create_openai,
-            # ── Future providers ─────────────────────────────────
-            # LLMProvider.ANTHROPIC: cls._create_anthropic,
-            # LLMProvider.GEMINI: cls._create_gemini,
-            # LLMProvider.OLLAMA: cls._create_ollama,
-            # LLMProvider.AZURE_OPENAI: cls._create_azure_openai,
+            LLMProvider.GEMINI: cls._create_gemini,
         }
 
         factory_fn = _provider_factories.get(provider)
@@ -598,6 +582,35 @@ class LLMFactory:
             temp=temperature,
         )
         return ChatOpenAI(**kwargs)
+
+    @staticmethod
+    def _create_gemini(
+        *,
+        model: str,
+        temperature: float,
+        max_tokens: Optional[int],
+        api_key: Optional[str],
+        timeout: int,
+    ) -> BaseChatModel:
+        """Create a Google Gemini-backed ``ChatGoogleGenerativeAI`` instance."""
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        kwargs: Dict[str, Any] = {
+            "model": model or "gemini-1.5-flash",
+            "temperature": temperature,
+            "timeout": timeout,
+        }
+        if api_key:
+            kwargs["google_api_key"] = api_key
+        if max_tokens is not None:
+            kwargs["max_output_tokens"] = max_tokens
+
+        logger.info(
+            "Gemini LLM ready  | model={model}  temperature={temp}",
+            model=model or "gemini-1.5-flash",
+            temp=temperature,
+        )
+        return ChatGoogleGenerativeAI(**kwargs)
 
     # ── Template: Anthropic ─────────────────────────────────────────
     #

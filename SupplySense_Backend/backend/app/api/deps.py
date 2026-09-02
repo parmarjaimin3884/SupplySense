@@ -98,7 +98,14 @@ def require_role(required_role: str) -> Callable:
     Example usage: `@require_role("CSCO_EXECUTIVE")`
     """
     async def role_checker(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
-        if current_user.role.value != required_role and current_user.role != required_role:
+        user_role_str = str(getattr(current_user.role, "value", current_user.role) or "").upper()
+        target_role = str(required_role).upper()
+
+        # Admin and CSCO_EXECUTIVE are authorized across enterprise management & executive routes
+        if user_role_str in ["ADMIN", "CSCO_EXECUTIVE", target_role] or target_role in ["ANY", "USER"]:
+            return current_user
+
+        if user_role_str != target_role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Requires '{required_role}' role privileges.",

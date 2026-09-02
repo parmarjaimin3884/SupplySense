@@ -19,11 +19,13 @@ function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 30 * 1000, // 30 seconds default cache for fast page transitions
         gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
-        refetchOnWindowFocus: false,
-        refetchOnMount: false,
-        refetchOnReconnect: false,
+        refetchOnWindowFocus: true,
+        refetchOnMount: true,
+        refetchOnReconnect: true,
+        structuralSharing: true, // Prevents re-rendering if data hasn't changed
+        notifyOnChangeProps: ["data", "error"], // Eliminates background fetching re-render lag
         retry: (failureCount, error) => {
           // Don't retry auth errors
           if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {

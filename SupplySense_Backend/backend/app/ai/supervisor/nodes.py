@@ -104,6 +104,7 @@ async def shipment_node(state: SupervisorState) -> dict:
     logger.info("Executing shipment_node...")
 
     try:
+        await asyncio.sleep(0.05)  # Minimal offset to prevent microsecond collision
         agent = ShipmentAgent()
         output = await agent.analyze(question)
         serialized = _serialize_response(output)
@@ -141,6 +142,7 @@ async def supplier_node(state: SupervisorState) -> dict:
     logger.info("Executing supplier_node...")
 
     try:
+        await asyncio.sleep(0.1)  # Minimal offset to prevent microsecond collision
         agent = SupplierAgent()
         output = await agent.analyze(question)
         serialized = _serialize_response(output)
@@ -177,6 +179,7 @@ async def forecast_node(state: SupervisorState) -> dict:
     logger.info("Executing forecast_node...")
 
     try:
+        await asyncio.sleep(0.15)  # Minimal offset to prevent microsecond collision
         agent = ForecastAgent()
         output = await agent.analyze(question)
         serialized = _serialize_response(output)

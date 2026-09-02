@@ -52,6 +52,11 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
     q_clean = query.strip()
     q_lower = re.sub(r"[.\?!;,]+$", "", q_clean.lower()).strip()
 
+    # Guardrail: Analytical / Mitigation / Resolution queries must go through LLM Agents
+    if any(k in q_lower for k in ["mitigate", "mitigation", "how to fix", "how can we fix", "action plan", "how do we resolve", "how can we mitigate", "strategy for"]):
+        logger.info(f"Deterministic router passing mitigation query to LLM Agent graph: '{q_clean}'")
+        return None
+
     # -----------------------------------------------------------------------
     # 1. UNSUPPORTED HYBRID CHECK
     # Checks if query combines operational DB entities/actions AND policy/SOP keywords
@@ -454,6 +459,26 @@ async def router_node(state: SupervisorState) -> dict:
 
     decision, llm_calls = await fast_route_query(user_question)
     selected_agent_names = [a.value for a in decision.selected_agents]
+
+    # Target operational agent selection for Risk/Mitigation queries to maximize speed
+    q_lower = user_question.lower()
+    if "risk" in selected_agent_names or "mitigate" in q_lower or "mitigation" in q_lower:
+        expanded_ops = []
+        if any(k in q_lower for k in ["shipment", "delay", "freight", "transit", "carrier", "tracking"]):
+            expanded_ops.append("shipment")
+        if any(k in q_lower for k in ["inventory", "stock", "product", "sku", "reorder", "return rate", "defect"]):
+            expanded_ops.append("inventory")
+        if any(k in q_lower for k in ["supplier", "vendor", "quality"]):
+            expanded_ops.append("supplier")
+
+        # Pick single primary domain if isolated, or max 2 agents
+        if not expanded_ops:
+            expanded_ops = ["inventory"]
+        elif len(expanded_ops) > 2:
+            expanded_ops = expanded_ops[:2]
+
+        selected_agent_names = [op for op in expanded_ops if op not in selected_agent_names] + ["risk"]
+        logger.info(f"Targeted operational agents for Risk analysis: {selected_agent_names}")
 
     # Map legacy primary_intent for backwards compatibility
     legacy_intent = decision.intent

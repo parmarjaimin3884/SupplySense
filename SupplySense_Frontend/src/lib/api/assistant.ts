@@ -11,7 +11,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v
 export const assistantApi = {
   chat: async (payload: ChatRequest): Promise<ChatResponse> => {
     const response = await apiClient.post<ChatResponse>("/ai/chat", payload, {
-      timeout: 120_000,
+      timeout: 180_000,
     });
     return response.data;
   },

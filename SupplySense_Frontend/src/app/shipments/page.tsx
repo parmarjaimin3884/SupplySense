@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   MapPin,
   RefreshCw,
+  ArrowRightLeft,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useShipmentList, useUpdateShipmentStatus, useSimulateCarrierTelemetry } from "@/hooks/useShipments";
@@ -239,10 +240,10 @@ export default function ShipmentsPage() {
             <table className="w-full text-left text-xs text-[#374151]">
               <thead className="bg-[#FAFAFA] border-b border-[#E5E7EB] text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
                 <tr>
-                  <th className="py-3.5 px-4">PO NUMBER</th>
+                  <th className="py-3.5 px-4">TRACKING / REF #</th>
                   <th className="py-3.5 px-4">PRODUCT / SKU</th>
                   <th className="py-3.5 px-4">CARRIER</th>
-                  <th className="py-3.5 px-4">DESTINATION HUB</th>
+                  <th className="py-3.5 px-4">ORIGIN ➔ DESTINATION</th>
                   <th className="py-3.5 px-4">EXPECTED DELIVERY</th>
                   <th className="py-3.5 px-4 text-center">STATUS</th>
                   <th className="py-3.5 px-4 text-right">ACTION</th>
@@ -271,9 +272,19 @@ export default function ShipmentsPage() {
 
                     return (
                       <tr key={s.id} className="hover:bg-[#F9FAFB] transition-colors">
-                        {/* PO Number */}
-                        <td className="py-3.5 px-4 font-mono font-bold text-[#2563EB]">
-                          {s.po_number || s.id}
+                        {/* PO Number / Transfer ID */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-[#2563EB]">
+                              {s.po_number || s.id}
+                            </span>
+                            {s.shipment_type === "INTER_DEPOT" && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#ECFDF5] text-[#059669] border border-[#059669]/20">
+                                <ArrowRightLeft className="h-2.5 w-2.5" />
+                                INTER-DEPOT
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Product & SKU */}
@@ -287,9 +298,21 @@ export default function ShipmentsPage() {
                           {s.carrier}
                         </td>
 
-                        {/* Destination Hub */}
+                        {/* Origin ➔ Destination Hub */}
                         <td className="py-3.5 px-4 text-[#374151]">
-                          {s.warehouse_name}
+                          {s.shipment_type === "INTER_DEPOT" && s.from_warehouse_name ? (
+                            <div className="flex items-center gap-1.5 font-medium">
+                              <span className="text-[#DC2626] font-semibold">{s.from_warehouse_name}</span>
+                              <span className="text-[#9CA3AF]">→</span>
+                              <span className="text-[#059669] font-semibold">{s.warehouse_name}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-[11px]">
+                              <span className="text-[#6B7280] font-medium">{s.supplier_name || "Vendor"}</span>
+                              <span className="text-[#9CA3AF]">→</span>
+                              <span className="text-[#111827] font-semibold">{s.warehouse_name}</span>
+                            </div>
+                          )}
                         </td>
 
                         {/* Expected Delivery */}

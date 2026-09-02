@@ -47,8 +47,10 @@ class ShipmentResponse(BaseModel):
     delay_reason: Optional[str] = None
     supplier_name: Optional[str] = "Tier-1 Vendor"
     warehouse_name: Optional[str] = "Surat Central Warehouse"
+    from_warehouse_name: Optional[str] = None
     accepted_quantity: Optional[int] = None
     inspection_result: Optional[str] = None
+    shipment_type: Optional[str] = "PURCHASE_ORDER"
 
     class Config:
         from_attributes = True

@@ -18,19 +18,17 @@ export function SignupSuccess({ fullName, companyName, role }: SignupSuccessProp
   const selectedRoleMeta = ENTERPRISE_ROLES.find((r) => r.id === role) || ENTERPRISE_ROLES[0];
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          router.push("/dashboard");
-          return 0;
-        }
-        return prev - 1;
-      });
+    if (countdown <= 0) {
+      router.push("/dashboard");
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [router]);
+    return () => clearTimeout(timer);
+  }, [countdown, router]);
 
   return (
     <div className="space-y-6 text-center py-4">

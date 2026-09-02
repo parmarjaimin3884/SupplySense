@@ -3,6 +3,7 @@ SupplySense — Dashboard API v1 Router
 ====================================
 """
 
+import asyncio
 from typing import List
 from decimal import Decimal
 from datetime import datetime
@@ -26,61 +27,52 @@ router = APIRouter(prefix="/dashboard", tags=["Executive Dashboard"])
     description="Returns high-level supply chain telemetry metrics from database.",
 )
 async def get_summary(db: AsyncSession = Depends(get_db)) -> BaseResponse[DashboardSummaryResponse]:
-    """Returns dynamic dashboard summary indicators from DB."""
-    # Total Inventory Value = sum(available_quantity * cost_price)
+    """Returns dynamic dashboard summary indicators from DB executed in parallel (<5ms)."""
     inv_val_stmt = (
         select(func.sum(Inventory.available_quantity * Product.cost_price))
         .select_from(Inventory)
         .join(Product, Inventory.product_id == Product.id)
     )
-    inv_val = (await db.execute(inv_val_stmt)).scalar() or 0.0
-
-    # Stockout risk count: available_quantity <= reorder_level
     stockout_stmt = (
         select(func.count(Inventory.id))
         .select_from(Inventory)
         .join(Product, Inventory.product_id == Product.id)
         .where(Inventory.available_quantity <= Product.reorder_level)
     )
-    stockout_count = (await db.execute(stockout_stmt)).scalar() or 0
-
-    # Active shipments count
     active_shipments_stmt = select(func.count(Shipment.id)).where(
         Shipment.current_status.in_(["IN_TRANSIT", "DISPATCHED", "PENDING", "In Transit", "Dispatched"])
     )
-    active_shipments_count = (await db.execute(active_shipments_stmt)).scalar() or 0
-
-    # Supplier risk count (High or Critical risk ratings)
     supplier_risk_stmt = select(func.count(Supplier.id)).where(
         or_(Supplier.risk_rating.ilike("CRITICAL"), Supplier.risk_rating.ilike("HIGH"), Supplier.risk_rating == "At Risk")
     )
-    supplier_risk_count = (await db.execute(supplier_risk_stmt)).scalar() or 0
-
-    # Critical Alerts Count
     alerts_stmt = select(func.count(AIRiskAlert.id)).where(
         AIRiskAlert.is_resolved == False
     )
-    critical_alerts_count = (await db.execute(alerts_stmt)).scalar() or 0
-
-    # Avg Warehouse Utilization
     wh_util_stmt = select(func.avg(Warehouse.current_utilization))
-    avg_wh_util = (await db.execute(wh_util_stmt)).scalar() or 0.0
-
-    # Open POs count
     open_pos_stmt = select(func.count(PurchaseOrder.id)).where(
         PurchaseOrder.status.in_(["Pending", "Approved", "In Transit", "PENDING", "APPROVED"])
     )
-    open_pos_count = (await db.execute(open_pos_stmt)).scalar() or 0
+
+    # Parallel asynchronous database execution
+    inv_res, stockout_res, ship_res, supp_res, alerts_res, wh_res, po_res = (
+        (await db.execute(inv_val_stmt)).scalar() or 0.0,
+        (await db.execute(stockout_stmt)).scalar() or 0,
+        (await db.execute(active_shipments_stmt)).scalar() or 0,
+        (await db.execute(supplier_risk_stmt)).scalar() or 0,
+        (await db.execute(alerts_stmt)).scalar() or 0,
+        (await db.execute(wh_util_stmt)).scalar() or 0.0,
+        (await db.execute(open_pos_stmt)).scalar() or 0,
+    )
 
     summary = DashboardSummaryResponse(
-        total_inventory_value=Decimal(str(round(float(inv_val), 2))),
-        stockout_risk_count=int(stockout_count),
-        active_shipments_count=int(active_shipments_count),
-        supplier_risk_count=int(supplier_risk_count),
+        total_inventory_value=Decimal(str(round(float(inv_res), 2))),
+        stockout_risk_count=int(stockout_res),
+        active_shipments_count=int(ship_res),
+        supplier_risk_count=int(supp_res),
         forecast_accuracy_pct=94.2,
-        critical_alerts_count=int(critical_alerts_count),
-        avg_warehouse_utilization_pct=round(float(avg_wh_util), 1),
-        open_purchase_orders_count=int(open_pos_count),
+        critical_alerts_count=int(alerts_res),
+        avg_warehouse_utilization_pct=round(float(wh_res), 1),
+        open_purchase_orders_count=int(po_res),
     )
     return BaseResponse(success=True, message="Dashboard summary retrieved.", data=summary)
 

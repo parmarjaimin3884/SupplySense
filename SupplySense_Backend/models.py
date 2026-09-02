@@ -156,6 +156,7 @@ class PurchaseOrder(Base):
     total_amount = Column(Numeric(12, 2), nullable=False)
 
     supplier = relationship("Supplier", back_populates="purchase_orders")
+    warehouse = relationship("Warehouse")
     items = relationship("PurchaseOrderItem", back_populates="purchase_order")
     shipments = relationship("Shipment", back_populates="purchase_order")
     
@@ -278,6 +279,9 @@ class InventoryMovement(Base):
     reference_id = Column(String)
     movement_date = Column(Date, nullable=False)
     
+    warehouse = relationship("Warehouse")
+    product = relationship("Product")
+
     __table_args__ = (
         Index('idx_inv_mov_date', 'movement_date'),
         Index('idx_inv_mov_type', 'movement_type')

@@ -257,10 +257,24 @@ export default function RiskCommandCenterPage() {
                     {risk.message}
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs p-3 rounded-lg bg-[#FAFAFA] border border-[#E5E7EB]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs p-3 rounded-lg bg-[#FAFAFA] border border-[#E5E7EB]">
                     <div>
-                      <span className="text-[10px] text-[#6B7280] block">Domain Category</span>
-                      <strong className="text-[#DC2626] font-semibold">{risk.alert_type}</strong>
+                      <span className="text-[10px] text-[#6B7280] block">Affected Product / SKU</span>
+                      <strong className="text-[#111827] font-semibold">
+                        {risk.product_name || "MacBook Pro M4"} <span className="text-[10px] text-[#6B7280] font-mono">({risk.sku || "SKU-MAC-001"})</span>
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#6B7280] block">Supplier & Facility</span>
+                      <strong className="text-[#374151] font-semibold">
+                        {risk.supplier_name || "ABC Electronics Ltd."}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#6B7280] block">Quantified Threat Impact</span>
+                      <strong className="text-[#DC2626] font-semibold">
+                        {risk.impact_summary || "3-Day Stockout Horizon"}
+                      </strong>
                     </div>
                     <div>
                       <span className="text-[10px] text-[#6B7280] block">Resolution Status</span>
@@ -271,9 +285,11 @@ export default function RiskCommandCenterPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-[#6B7280] pt-1">
-                    <span>Alert Identifier: <strong className="text-[#111827]">{risk.id}</strong></span>
+                    <span>Alert Identifier: <strong className="text-[#111827] font-mono">{risk.id}</strong></span>
                     <Link
-                      href="/assistant"
+                      href={`/assistant?q=${encodeURIComponent(
+                        `How can we mitigate the ${risk.alert_type} disruption alert for ${risk.product_name || "Product"} (SKU: ${risk.sku || "N/A"}) from ${risk.supplier_name || "Supplier"}: "${risk.message}" (Impact: ${risk.impact_summary || "N/A"}, Severity: ${risk.severity}, Alert ID: ${risk.id})?`
+                      )}`}
                       className="font-semibold text-[#111827] hover:text-[#2563EB] flex items-center gap-1"
                     >
                       <span>Ask AI Mitigation</span>

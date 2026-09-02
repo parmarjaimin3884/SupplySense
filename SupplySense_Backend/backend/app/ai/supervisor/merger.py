@@ -25,7 +25,42 @@ from backend.app.ai.supervisor.state import SupervisorState
 logger = logging.getLogger(__name__)
 
 
-@traceable(name="supervisor_merge_outputs")
+def _format_agent_output_compact(name: str, data: Dict[str, Any]) -> str:
+    """Format agent output into a token-efficient text summary for merger synthesis."""
+    if not isinstance(data, dict):
+        return f"=== AGENT OUTPUT: {name.upper()} ===\n{str(data)[:500]}"
+    
+    summary = data.get("summary") or data.get("executive_summary") or data.get("overall_risk") or ""
+    status_val = data.get("inventory_status") or data.get("shipment_status") or data.get("risk_level") or "OK"
+    confidence = data.get("confidence", 0.8)
+    
+    lines = [
+        f"=== AGENT OUTPUT: {name.upper()} (Status: {status_val}, Confidence: {confidence}) ===",
+        f"Summary: {summary}",
+    ]
+    
+    findings = data.get("critical_findings") or data.get("findings") or data.get("risks") or []
+    if findings:
+        lines.append("Key Findings:")
+        for f in findings[:3]:
+            if isinstance(f, dict):
+                lines.append(f" - [{f.get('severity', 'Medium')}] {f.get('title', 'Finding')}: {f.get('description') or f.get('detail') or ''}")
+            else:
+                lines.append(f" - {str(f)}")
+                
+    actions = data.get("priority_actions") or data.get("recommendations") or []
+    if actions:
+        lines.append("Key Actions:")
+        for a in actions[:3]:
+            if isinstance(a, dict):
+                lines.append(f" - [{a.get('urgency') or a.get('priority') or 'High'}] {a.get('action', 'Action')}: {a.get('rationale') or ''}")
+            else:
+                lines.append(f" - {str(a)}")
+                
+    return "\n".join(lines)
+
+
+@traceable(name="supervisor_merge_agent_outputs")
 async def merge_agent_outputs(
     user_question: str,
     intent: str,
@@ -160,8 +195,7 @@ async def merge_agent_outputs(
 
         context_blocks = []
         for name, data in agent_outputs.items():
-            context_blocks.append(f"=== AGENT OUTPUT: {name.upper()} ===")
-            context_blocks.append(str(data))
+            context_blocks.append(_format_agent_output_compact(name, data))
             context_blocks.append("")
 
         context_str = "\n".join(context_blocks)
@@ -171,7 +205,7 @@ async def merge_agent_outputs(
             f"Classified Intent: {intent}\n"
             f"Invoked Agents: {selected_agents}\n\n"
             f"AGENT OUTPUTS TO MERGE:\n{context_str}\n\n"
-            f"Synthesize the above into a unified SupervisorResponse matching the schema."
+            f"Synthesize the above into a unified SupervisorResponse matching the schema. Write clear, executive Markdown prose."
         )
 
         messages = [
@@ -285,23 +319,77 @@ def _heuristic_fallback_merge(
     nodes_executed: List[str],
     duration_ms: float,
 ) -> SupervisorResponse:
-    """Heuristic fallback merger if LLM synthesis fails."""
+    """Heuristic fallback merger if LLM synthesis fails or hits token limits."""
     summaries = []
     citations = []
     findings = []
     recommendations = []
     confidences = []
+    primary_answer = ""
+    primary_summary = ""
+
+    # Priority order for primary answer: risk > executive > inventory > shipment > supplier > forecast
+    priority_order = ["risk", "executive", "inventory", "shipment", "supplier", "forecast", "rag"]
+    for agent in priority_order:
+        if agent in agent_outputs and isinstance(agent_outputs[agent], dict):
+            data = agent_outputs[agent]
+            if not primary_answer:
+                primary_answer = data.get("overall_risk") or data.get("executive_summary") or data.get("answer") or data.get("summary", "")
+            if not primary_summary:
+                primary_summary = data.get("summary") or data.get("executive_summary") or primary_answer
 
     for name, data in agent_outputs.items():
-        if "summary" in data:
+        if not isinstance(data, dict):
+            continue
+
+        if "summary" in data and data["summary"]:
             summaries.append(f"[{name.upper()}]: {data['summary']}")
         if "sources" in data and isinstance(data["sources"], list):
             citations.extend(data["sources"])
-        if "confidence" in data:
+        if "confidence" in data and isinstance(data["confidence"], (int, float)):
             confidences.append(float(data["confidence"]))
 
-    composite_summary = " ".join(summaries) if summaries else "Multi-agent analysis completed."
-    avg_conf = sum(confidences) / len(confidences) if confidences else 0.5
+        # Extract critical findings
+        crit = data.get("critical_findings") or data.get("findings") or data.get("risks") or []
+        for item in crit:
+            if isinstance(item, dict):
+                findings.append(MergedFinding(
+                    category=item.get("category", name.capitalize()),
+                    title=item.get("title", f"{name.capitalize()} Finding"),
+                    detail=item.get("description") or item.get("detail") or str(item),
+                    severity=item.get("severity", "Medium"),
+                    source_agent=name,
+                ))
+            elif isinstance(item, str):
+                findings.append(MergedFinding(
+                    category=name.capitalize(),
+                    title=f"{name.capitalize()} Risk",
+                    detail=item,
+                    severity="Medium",
+                    source_agent=name,
+                ))
+
+        # Extract priority actions & recommendations
+        actions = data.get("priority_actions") or data.get("recommendations") or []
+        for act in actions:
+            if isinstance(act, dict):
+                recommendations.append(MergedRecommendation(
+                    action=act.get("action", "Recommended Action"),
+                    rationale=act.get("rationale") or act.get("target") or "",
+                    priority=act.get("urgency") or act.get("priority") or "High",
+                    source_agents=[name],
+                ))
+            elif isinstance(act, str):
+                recommendations.append(MergedRecommendation(
+                    action=act,
+                    rationale=primary_summary,
+                    priority="Medium",
+                    source_agents=[name],
+                ))
+
+    final_summary = primary_summary if primary_summary else (" ".join(summaries) if summaries else "Multi-agent operational analysis completed.")
+    final_answer = primary_answer if primary_answer else final_summary
+    avg_conf = max(confidences) if confidences else 0.8
 
     return SupervisorResponse(
         status="success",
@@ -309,8 +397,8 @@ def _heuristic_fallback_merge(
         query_type="agent",
         intent=_parse_intent_enum(intent),
         selected_agents=selected_agents,
-        summary=composite_summary,
-        answer=composite_summary,
+        summary=final_summary,
+        answer=final_answer,
         findings=findings,
         recommendations=recommendations,
         citations_and_sources=list(set(citations)),
