@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Boxes, ChevronDown, ChevronRight, Menu, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Menu, X } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -13,12 +14,7 @@ export function Navbar() {
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111827] text-white">
-              <Boxes className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-extrabold tracking-tight text-[#111827]">
-              SupplySense
-            </span>
+            <Logo size="md" />
           </Link>
 
           {/* Center Navigation Links (Cal.com text-sm font-semibold) */}

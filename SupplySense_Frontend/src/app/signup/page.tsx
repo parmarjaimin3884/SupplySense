@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { Boxes, Loader2, AlertCircle, ArrowLeft, ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import { AuthSplitLayout } from "@/components/auth/auth-split-layout";
-import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { PasswordInput } from "@/components/auth/password-input";
 import { PasswordStrength } from "@/components/auth/password-strength";
 import { RoleSelector } from "@/components/auth/role-selector";
@@ -153,19 +152,6 @@ export default function SignupPage() {
           {step === "credentials" ? (
             /* STEP 1: Basic Information + Credentials */
             <>
-              {/* Social Authentication */}
-              <div className="space-y-2">
-                <SocialAuthButtons isLoading={isLoading} />
-
-                {/* Clean minimal divider */}
-                <div className="relative flex items-center justify-center py-1">
-                  <div className="w-full border-t border-[#E5E7EB]" />
-                  <span className="absolute bg-white px-2.5 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
-                    OR
-                  </span>
-                </div>
-              </div>
-
               {/* Form */}
               <form onSubmit={handleCredentialsSubmit} className="space-y-2.5">
                 {/* Row: Full Name & Company Name */}

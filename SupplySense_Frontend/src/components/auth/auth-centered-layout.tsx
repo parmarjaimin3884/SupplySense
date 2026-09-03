@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Boxes, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 interface AuthCenteredLayoutProps {
   children: React.ReactNode;
@@ -13,12 +14,7 @@ export function AuthCenteredLayout({ children }: AuthCenteredLayoutProps) {
       {/* Top Bar with Brand Logo */}
       <div className="w-full max-w-md mx-auto flex items-center justify-center">
         <Link href="/" className="inline-flex items-center gap-2.5 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#111827] text-white shadow-xs group-hover:bg-black transition-colors">
-            <Boxes className="h-5 w-5" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-[#111827]">
-            SupplySense
-          </span>
+          <Logo size="lg" />
         </Link>
       </div>
 

@@ -427,27 +427,27 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                         ]
                         if matched_items:
                             inv_items = matched_items
+                            total_qty = sum(item.get("available_quantity", 0) for item in inv_items)
+                            total_on_hand = sum(item.get("quantity_on_hand", 0) for item in inv_items)
+                            wh_disp = inv_items[0].get("warehouse_name", wh_filter)
+                            answer_text = f"In {wh_disp} Warehouse, {p_name} (SKU: {first_p.get('sku')}) currently has {total_qty} units available ({total_on_hand} units on hand)."
+                        else:
+                            answer_text = f"Found product {p_name} (SKU: {first_p.get('sku')}), but no active inventory records were found for '{wh_filter}' warehouse."
                     else:
-                        # Prioritize Surat Central Warehouse
-                        surat_items = [
-                            item for item in inv_items
-                            if item.get("warehouse_name") and "surat" in item.get("warehouse_name").lower()
+                        total_qty = sum(item.get("available_quantity", 0) for item in inv_items)
+                        total_on_hand = sum(item.get("quantity_on_hand", 0) for item in inv_items)
+                        breakdown_lines = [
+                            f"• {item.get('warehouse_name', 'Unknown')}: {item.get('available_quantity', 0)} available ({item.get('quantity_on_hand', 0)} on hand)"
+                            for item in inv_items
                         ]
-                        if surat_items:
-                            inv_items = surat_items
-
-                    total_qty = sum(item.get("available_quantity", 0) for item in inv_items)
-                    total_on_hand = sum(item.get("quantity_on_hand", 0) for item in inv_items)
-                    
-                    if inv_items:
-                        wh_disp = inv_items[0].get("warehouse_name", "Surat")
-                        answer_text = f"In {wh_disp} Warehouse, {p_name} (SKU: {first_p.get('sku')}) currently has {total_qty} units available ({total_on_hand} units on hand)."
-                    else:
-                        answer_text = f"{p_name} quantity is {total_qty} units available in Surat."
+                        answer_text = (
+                            f"Across all {len(inv_items)} warehouses, {p_name} (SKU: {first_p.get('sku')}) has a total of {total_qty} units available ({total_on_hand} units on hand):\n"
+                            + "\n".join(breakdown_lines)
+                        )
                 else:
-                    answer_text = f"Found product {p_name} (SKU: {first_p.get('sku')}), but no active inventory records were found in Surat Central Warehouse."
+                    answer_text = f"Found product {p_name} (SKU: {first_p.get('sku')}), but no active inventory records were found across any warehouse."
             else:
-                answer_text = f"No product matching '{prod_name}' was found in the Surat inventory database."
+                answer_text = f"No product matching '{prod_name}' was found in the inventory database."
                 used_tool_name = "search_products"
 
         # 2. Pending Purchase Orders
@@ -456,7 +456,7 @@ async def direct_tool_node(state: SupervisorState) -> dict:
             raw_data = po_res
             if po_res.get("success") and isinstance(po_res.get("data"), list):
                 count = len(po_res["data"])
-                answer_text = f"There are currently {count} pending purchase orders for Surat Central Warehouse."
+                answer_text = f"There are currently {count} pending purchase orders across the supply chain network."
             else:
                 answer_text = "Unable to retrieve pending purchase orders at this time."
 
@@ -466,7 +466,7 @@ async def direct_tool_node(state: SupervisorState) -> dict:
             raw_data = ship_res
             if ship_res.get("success") and isinstance(ship_res.get("data"), list):
                 count = len(ship_res["data"])
-                answer_text = f"There are currently {count} active/pending shipments destined for Surat Central Warehouse."
+                answer_text = f"There are currently {count} active/pending shipments across all warehouses."
             else:
                 answer_text = "Unable to retrieve active shipments at this time."
 
@@ -498,18 +498,19 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                             matched_wh = w
                             break
 
-                # 2. If no match or general query, default directly to Surat (WH-SUR)
-                if not matched_wh:
-                    matched_wh = next(
-                        (w for w in wh_res["data"] if "surat" in (w.get("name") or "").lower() or "sur" in (w.get("warehouse_code") or "").lower()),
-                        wh_res["data"][0] if wh_res["data"] else None
-                    )
-
             if matched_wh:
                 capacity = matched_wh.get("capacity", "N/A")
                 utilization = matched_wh.get("current_utilization")
                 util_text = f" (Current utilization: {utilization}%)" if utilization is not None else ""
                 answer_text = f"The capacity of {matched_wh['name']} is {capacity} units.{util_text}"
+                used_tool_name = "get_warehouse_capacity"
+            elif wh_res.get("success") and wh_res.get("data"):
+                total_cap = sum(w.get("capacity", 0) for w in wh_res["data"])
+                lines = [
+                    f"• {w['name']} ({w['warehouse_code']}): Capacity {w.get('capacity', 'N/A')} units (Utilization: {w.get('current_utilization', 'N/A')}%)"
+                    for w in wh_res["data"]
+                ]
+                answer_text = f"Total network warehouse capacity across {len(wh_res['data'])} facilities is {total_cap} units:\n" + "\n".join(lines)
                 used_tool_name = "get_warehouse_capacity"
             else:
                 answer_text = f"No warehouse matching '{wh_name}' was found in the database." if wh_name else "No data available."
@@ -540,13 +541,6 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                             matched_wh = w
                             break
 
-                # 2. If no match or general query, default directly to Surat (WH-SUR)
-                if not matched_wh:
-                    matched_wh = next(
-                        (w for w in wh_res["data"] if "surat" in (w.get("name") or "").lower() or "sur" in (w.get("warehouse_code") or "").lower()),
-                        wh_res["data"][0] if wh_res["data"] else None
-                    )
-
             if matched_wh:
                 w_inv = await warehouse.get_warehouse_inventory(warehouse_id=matched_wh["id"])
                 items = w_inv.get("data", []) if (w_inv.get("success") and isinstance(w_inv.get("data"), list)) else []
@@ -557,6 +551,17 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                 util_str = f" (Utilization: {util}%)" if util is not None else ""
                 answer_text = f"{matched_wh['name']} currently contains {count} active SKU inventory records ({total_units} available units) with a total facility capacity of {capacity} units{util_str}."
                 used_tool_name = "get_warehouse_inventory"
+            elif wh_res.get("success") and wh_res.get("data"):
+                lines = []
+                for w in wh_res["data"]:
+                    w_inv = await warehouse.get_warehouse_inventory(warehouse_id=w["id"])
+                    items = w_inv.get("data", []) if (w_inv.get("success") and isinstance(w_inv.get("data"), list)) else []
+                    lines.append(f"• {w['name']} ({w['warehouse_code']}): {len(items)} SKUs, {sum(it.get('available_quantity', 0) for it in items)} units available")
+                answer_text = f"Active inventory summary across all {len(wh_res['data'])} warehouses:\n" + "\n".join(lines)
+                used_tool_name = "get_warehouse_inventory"
+            else:
+                answer_text = f"No warehouse matching '{wh_name}' was found in the database." if wh_name else "No data available."
+
         # 6. Low Stock & Reorder Point Lookup
         elif target_tool in ["get_low_stock_products", "low_stock_products", "low_stock"]:
             low_res = await inventory.get_low_stock_products()
@@ -570,7 +575,7 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                     ]
                     answer_text = f"Identified {len(items)} products currently at or below their safety reorder threshold:\n" + "\n".join(lines)
                 else:
-                    answer_text = "All products in Surat Central Warehouse are currently above their reorder point. Inventory is healthy."
+                    answer_text = "All products across all warehouses are currently above their reorder point. Inventory is healthy."
             else:
                 answer_text = "Unable to retrieve reorder stock data at this time."
 
@@ -582,9 +587,9 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                 items = oos_res["data"]
                 if items:
                     lines = [f"• {it['product_name']} (SKU: {it['sku']}): 0 units available" for it in items[:6]]
-                    answer_text = f"Found {len(items)} depleted / out-of-stock products in Surat Central:\n" + "\n".join(lines)
+                    answer_text = f"Found {len(items)} depleted / out-of-stock products across all warehouses:\n" + "\n".join(lines)
                 else:
-                    answer_text = "There are currently zero out-of-stock products in Surat Central Warehouse."
+                    answer_text = "There are currently zero out-of-stock products across all warehouses."
             else:
                 answer_text = "Unable to retrieve stockout data at this time."
 
@@ -615,7 +620,7 @@ async def direct_tool_node(state: SupervisorState) -> dict:
                     lines = [f"• {it['product_name']} (SKU: {it['sku']}): {it.get('available_quantity', 0)} units non-moving" for it in items[:5]]
                     answer_text = f"Found {len(items)} slow-moving/dead stock items:\n" + "\n".join(lines)
                 else:
-                    answer_text = "No dead stock identified in Surat Central Warehouse."
+                    answer_text = "No dead stock identified across all warehouses."
             else:
                 answer_text = "Unable to retrieve dead stock records at this time."
 

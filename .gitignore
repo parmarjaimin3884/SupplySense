@@ -9,6 +9,8 @@
 **/.env.local
 **/.env.development
 **/.env.production
+*.pem
+**/*.pem
 
 # Dependencies & Build Outputs
 **/node_modules/

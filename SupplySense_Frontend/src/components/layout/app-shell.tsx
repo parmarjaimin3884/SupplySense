@@ -40,6 +40,8 @@ import { CommandPalette } from "./command-palette";
 import { NotificationDrawer } from "./notification-drawer";
 import { NotificationToast } from "@/components/notifications/notification-toast";
 import { NotificationDetailModal } from "@/components/notifications/notification-detail-modal";
+import { DemoControlBar } from "./demo-control-bar";
+import { Logo } from "@/components/ui/logo";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -196,18 +198,11 @@ export function AppShell({ children }: AppShellProps) {
           </button>
 
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111827] text-white shadow-xs group-hover:bg-black transition-colors">
-              <Boxes className="h-4 w-4" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-extrabold tracking-tight text-[#111827]">
-                SupplySense
-              </span>
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-full border border-[#2563EB]/20">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB] animate-pulse" />
-                <span>MULTI-DEPOT NETWORK (5 HUBS)</span>
-              </span>
-            </div>
+            <Logo size="sm" />
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] px-2 py-0.5 rounded-full border border-[#2563EB]/20">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#2563EB] animate-pulse" />
+              <span>MULTI-DEPOT NETWORK</span>
+            </span>
           </Link>
         </div>
 
@@ -230,19 +225,10 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Right: Actions, Role Switcher, Notifications & User Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Live Real-Time Telemetry Pulse Indicator (Interactive Sync) */}
-          <button
-            type="button"
-            onClick={handleManualSync}
-            title="Click to immediately sync all live database metrics"
-            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#16A34A]/25 bg-[#F0FDF4] text-[11px] font-semibold text-[#16A34A] shadow-2xs hover:bg-[#DCFCE7] active:scale-95 transition-all cursor-pointer"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-[#16A34A] opacity-75 ${isSyncing ? "duration-300" : ""}`}></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#16A34A]"></span>
-            </span>
-            <span>{isSyncing ? "Syncing..." : "Live Sync Active"}</span>
-          </button>
+          {/* Cloud Demo Simulator & On-Demand Event Controls */}
+          <div className="hidden md:flex items-center">
+            <DemoControlBar />
+          </div>
 
           {/* Authenticated Role Badge (Read-Only) */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] text-xs font-semibold text-[#111827] shadow-2xs">

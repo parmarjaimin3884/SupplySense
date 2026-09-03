@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
+    # Live Cloud Demo Simulation Config
+    ENABLE_LIVE_ERP_SIMULATOR: bool = True
+    SIMULATION_INTERVAL_SECONDS: float = 6.0
+
     # Security Config
     SECRET_KEY: str = "supplysense-dev-super-secret-key-change-in-production-32bytes!"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

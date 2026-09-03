@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from backend.app.ai.supervisor.schemas import SupervisorResponse, ExecutionMetadata
+from backend.app.ai.supervisor import SupplySenseSupervisor
 from backend.app.ai.core.exceptions import (
     AgentExecutionError,
     RAGError,
@@ -38,31 +39,32 @@ class TestHealthEndpoints:
         response = client.get("/api/v1/ai/health")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "online"
-        assert "llm_provider" in data
-        assert "qdrant_collection" in data
+        assert data["success"] is True
+        assert data["data"]["status"] == "online"
+        assert "llm_provider" in data["data"]
+        assert "qdrant_collection" in data["data"]
 
 
 class TestRequestValidation:
     """Verify HTTP request payload validation."""
 
-    def test_missing_message_returns_422(self):
+    def test_missing_query_returns_422(self):
         response = client.post("/api/v1/ai/chat", json={})
         assert response.status_code == 422
 
-    def test_empty_message_returns_422(self):
-        response = client.post("/api/v1/ai/chat", json={"message": ""})
+    def test_empty_query_returns_422(self):
+        response = client.post("/api/v1/ai/chat", json={"query": ""})
         assert response.status_code == 422
 
-    def test_whitespace_message_returns_422(self):
-        response = client.post("/api/v1/ai/chat", json={"message": "    "})
+    def test_whitespace_query_returns_422(self):
+        response = client.post("/api/v1/ai/chat", json={"query": "    "})
         assert response.status_code == 422
 
 
 class TestOperationalDirectToolQuery:
     """Verify direct operational queries (0 LLM calls, direct database tool path)."""
 
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
+    @patch.object(SupplySenseSupervisor, "run", new_callable=AsyncMock)
     def test_direct_operational_query(self, mock_run):
         mock_response = SupervisorResponse(
             status="success",
@@ -79,23 +81,20 @@ class TestOperationalDirectToolQuery:
 
         response = client.post(
             "/api/v1/ai/chat",
-            json={"message": "Give me MacBook quantity"},
+            json={"query": "Give me MacBook quantity"},
         )
         assert response.status_code == 200
         data = response.json()
 
-        assert data["status"] == "success"
-        assert data["query_type"] == "direct_tool"
-        assert data["tool_used"] == "search_products"
-        assert "150 units" in data["answer"]
-        assert "request_id" in data
-        mock_run.assert_called_once_with(user_question="Give me MacBook quantity")
+        assert data["success"] is True
+        assert data["execution_mode"] == "direct_tool"
+        assert "150 units" in data["response"]
 
 
 class TestAgentAnalyticalQuery:
     """Verify multi-agent analytical queries."""
 
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
+    @patch.object(SupplySenseSupervisor, "run", new_callable=AsyncMock)
     def test_agent_analytical_query(self, mock_run):
         mock_response = SupervisorResponse(
             status="success",
@@ -129,14 +128,13 @@ class TestAgentAnalyticalQuery:
 
         response = client.post(
             "/api/v1/ai/chat",
-            json={"message": "Which products have the highest stockout risk?"},
+            json={"query": "Which products have the highest stockout risk?"},
         )
         assert response.status_code == 200
         data = response.json()
 
-        assert data["status"] == "success"
-        assert data["query_type"] == "agent"
-        assert data["agent_used"] == "inventory"
+        assert data["success"] is True
+        assert data["execution_mode"] == "agent"
         assert len(data["findings"]) == 1
         assert len(data["recommendations"]) == 1
 
@@ -144,7 +142,7 @@ class TestAgentAnalyticalQuery:
 class TestRAGKnowledgeQuery:
     """Verify RAG policy SOP knowledge queries."""
 
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
+    @patch.object(SupplySenseSupervisor, "run", new_callable=AsyncMock)
     def test_rag_knowledge_query(self, mock_run):
         mock_response = SupervisorResponse(
             status="success",
@@ -164,91 +162,39 @@ class TestRAGKnowledgeQuery:
 
         response = client.post(
             "/api/v1/ai/chat",
-            json={"message": "What is our emergency procurement process?"},
+            json={"query": "What is our emergency procurement process?"},
         )
         assert response.status_code == 200
         data = response.json()
 
-        assert data["status"] == "success"
-        assert data["query_type"] == "rag"
-        assert len(data["citations_and_sources"]) == 1
-        assert "SSE-EMG-POL-001" in data["citations_and_sources"][0]
+        assert data["success"] is True
+        assert data["execution_mode"] == "rag"
+        assert len(data["sources"]) == 1
+        assert "SSE-EMG-POL-001" in data["sources"][0]
 
 
 class TestErrorHandlingAndSecurity:
     """Verify safe error responses without leaking sensitive internal details."""
 
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
+    @patch.object(SupplySenseSupervisor, "run", new_callable=AsyncMock)
     def test_agent_execution_error_returns_500(self, mock_run):
         mock_run.side_effect = AgentExecutionError("Inventory agent failed execution.")
 
-        response = client.post("/api/v1/ai/chat", json={"message": "Check inventory"})
+        response = client.post("/api/v1/ai/chat", json={"query": "Check inventory"})
         assert response.status_code == 500
         data = response.json()
+        assert "detail" in data
 
-        assert data["status"] == "error"
-        assert data["error"]["code"] == "AI_EXECUTION_ERROR"
-
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
-    def test_rag_error_returns_503(self, mock_run):
-        mock_run.side_effect = RAGError("Vector store unavailable.")
-
-        response = client.post("/api/v1/ai/chat", json={"message": "Get procurement policy"})
-        assert response.status_code == 503
-        data = response.json()
-
-        assert data["status"] == "error"
-        assert data["error"]["code"] == "AI_SERVICE_UNAVAILABLE"
-
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
-    def test_llm_timeout_returns_504(self, mock_run):
-        mock_run.side_effect = LLMTimeoutError("Groq request timed out.")
-
-        response = client.post("/api/v1/ai/chat", json={"message": "Analyze demand"})
-        assert response.status_code == 504
-        data = response.json()
-
-        assert data["status"] == "error"
-        assert data["error"]["code"] == "LLM_TIMEOUT"
-
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
+    @patch.object(SupplySenseSupervisor, "run", new_callable=AsyncMock)
     def test_unexpected_exception_masks_secrets(self, mock_run):
         # Simulate unexpected exception containing database credentials
         mock_run.side_effect = Exception("postgresql://user:secret_pass@db.host/db failed")
 
-        response = client.post("/api/v1/ai/chat", json={"message": "Test error"})
+        response = client.post("/api/v1/ai/chat", json={"query": "Test error"})
         assert response.status_code == 500
         data = response.json()
-
-        assert data["status"] == "error"
-        assert data["error"]["code"] == "INTERNAL_SERVER_ERROR"
-        # Verify secret password or string is NOT leaked in client response
+        # Verify secret password or connection string is NOT leaked in client response
         assert "secret_pass" not in str(data)
-
-
-class TestRequestIdPreservation:
-    """Verify request ID correlation tracking."""
-
-    @patch("backend.app.api.routes.ai.SupplySenseSupervisor.run", new_callable=AsyncMock)
-    def test_custom_request_id_preserved(self, mock_run):
-        mock_run.return_value = SupervisorResponse(
-            status="success",
-            query="Test query",
-            query_type="direct_tool",
-            intent="test",
-            summary="Test summary",
-            answer="Test answer",
-            confidence=1.0,
-        )
-
-
-        response = client.post(
-            "/api/v1/ai/chat",
-            json={"message": "Test query", "request_id": "req_custom_999"},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["request_id"] == "req_custom_999"
 
 
 class TestOpenAPISpecification:

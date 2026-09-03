@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Boxes } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 export function Footer() {
   return (
@@ -8,13 +8,8 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-16">
           {/* Col 1: Brand & Status */}
           <div className="col-span-2">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111827] text-white">
-                <Boxes className="h-5 w-5" />
-              </div>
-              <span className="text-xl font-extrabold tracking-tight text-[#111827]">
-                SupplySense
-              </span>
+            <Link href="/" className="inline-flex items-center gap-2.5">
+              <Logo size="lg" />
             </Link>
             <p className="mt-4 text-sm text-[#6B7280] max-w-sm leading-relaxed font-medium">
               Enterprise AI Supply Chain Risk & Inventory Intelligence platform. Built for inventory

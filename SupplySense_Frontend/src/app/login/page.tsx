@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Boxes, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { AuthSplitLayout } from "@/components/auth/auth-split-layout";
-import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { PasswordInput } from "@/components/auth/password-input";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { ApiError } from "@/types/common";
+import { Logo } from "@/components/ui/logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,13 +66,8 @@ export default function LoginPage() {
         {/* Right Panel Header */}
         <div className="space-y-1.5">
           {/* Logo */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#111827] text-white">
-              <Boxes className="h-4 w-4" />
-            </div>
-            <span className="text-base font-bold tracking-tight text-[#111827]">
-              SupplySense
-            </span>
+          <div className="mb-2">
+            <Logo size="sm" />
           </div>
 
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#111827]">
@@ -97,19 +92,6 @@ export default function LoginPage() {
             <span>{successMessage}</span>
           </div>
         )}
-
-        {/* Social Authentication */}
-        <div className="space-y-2.5">
-          <SocialAuthButtons isLoading={isLoading} />
-
-          {/* Clean minimal divider */}
-          <div className="relative flex items-center justify-center py-1">
-            <div className="w-full border-t border-[#E5E7EB]" />
-            <span className="absolute bg-white px-2.5 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF]">
-              OR
-            </span>
-          </div>
-        </div>
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-3">

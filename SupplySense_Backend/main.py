@@ -22,10 +22,22 @@ try:
 except Exception:
     pass
 
+from contextlib import asynccontextmanager
 from backend.app.config.settings import settings
 from backend.app.utils.logger import logger
 from backend.app.api.v1 import api_v1_router
 from backend.app.schemas.common import ErrorResponse, ErrorDetail
+from backend.app.services.erp_simulator import start_simulation, stop_simulation
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if settings.ENABLE_LIVE_ERP_SIMULATOR:
+        logger.info(f"Auto-starting Live Cloud ERP Stream Simulator (Interval: {settings.SIMULATION_INTERVAL_SECONDS}s)")
+        start_simulation(interval_seconds=settings.SIMULATION_INTERVAL_SECONDS)
+    yield
+    stop_simulation()
+
 
 # Initialize FastAPI App Foundation
 app = FastAPI(
@@ -35,6 +47,7 @@ app = FastAPI(
     debug=settings.DEBUG,
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
+    lifespan=lifespan,
 )
 
 # Configure CORS Middleware

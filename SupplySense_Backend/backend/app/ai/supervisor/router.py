@@ -133,7 +133,7 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
                 if wh_q_match:
                     wh_entity = wh_q_match.group(1).strip()
                     entity = re.sub(r"\s+in\s+" + re.escape(wh_entity) + r".*$", "", entity, flags=re.IGNORECASE).strip()
-            if entity:
+            if entity and not any(entity.startswith(prefix) for prefix in ["are in", "in warehouse", "in the", "in our"]):
                 entities_dict = {"product": entity, "operation": "current_quantity"}
                 if wh_entity:
                     entities_dict["warehouse"] = wh_entity
@@ -173,10 +173,10 @@ def _deterministic_route(query: str) -> Optional[RouterDecision]:
 
     # D. Products in Warehouse & Inventory Records (e.g. "How many total products and inventory records are in our warehouse?", "How many products in warehouse?")
     wh_inv_patterns = [
-        r"how many (?:total )?(?:products|items|inventory records|skus)(?: and inventory records)? (?:are )?(?:in|inside|at) (?:our |the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?",
-        r"products (?:are )?in (?:our |the )?warehouse\s*([a-zA-Z0-9\s\-]*)",
+        r"how many (?:total )?(?:products|items|inventory records|skus)(?: and inventory records)? (?:are )?(?:in|inside|at) (?:our |the )?(?:warehouse\s+)?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?$",
+        r"products (?:are )?in (?:our |the )?(?:warehouse\s+)?([a-zA-Z0-9\s\-]*?)(?:\s+warehouse)?$",
         r"warehouse\s+([a-zA-Z0-9\s\-]+)\s+inventory",
-        r"total (?:products|inventory records|items) in (?:our |the )?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?",
+        r"total (?:products|inventory records|items) in (?:our |the )?(?:warehouse\s+)?([a-zA-Z0-9\s\-]+?)(?:\s+warehouse)?$",
         r"how many (?:products|items|inventory records) in (?:our |the |surat )?warehouse",
     ]
     for pat in wh_inv_patterns:

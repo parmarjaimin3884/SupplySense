@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Boxes, Sparkles, Shield, Lock, CheckCircle2 } from "lucide-react";
+import { Sparkles, Shield, Lock, CheckCircle2 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { AuthDashboardPreview } from "./auth-dashboard-preview";
 
 interface AuthSplitLayoutProps {
@@ -37,12 +38,7 @@ export function AuthSplitLayout({
           {/* Top: Brand Logo (Aligned directly with headline & card below) */}
           <div>
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#111827] text-white shadow-xs group-hover:bg-black transition-colors">
-                <Boxes className="h-4 w-4" />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-[#111827]">
-                SupplySense
-              </span>
+              <Logo size="md" />
             </Link>
           </div>
 
@@ -92,12 +88,7 @@ export function AuthSplitLayout({
         {/* Mobile-only Top Brand Header */}
         <div className="flex lg:hidden items-center justify-between pb-6 mb-2 border-b border-[#E5E7EB]">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#111827] text-white">
-              <Boxes className="h-4 w-4" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-[#111827]">
-              SupplySense
-            </span>
+            <Logo size="sm" />
           </Link>
           <span className="text-xs text-[#6B7280] font-medium">Enterprise Auth</span>
         </div>

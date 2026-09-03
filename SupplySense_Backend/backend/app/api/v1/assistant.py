@@ -94,7 +94,10 @@ async def chat(
         return ai_response
     except Exception as e:
         logger.error(f"AI Chat error: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"AI execution error: {str(e)}")
+        import re
+        err_msg = str(e)
+        sanitized_msg = re.sub(r"://[^@]+@", "://***:***@", err_msg)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="AI execution error occurred. Please try again later.")
 
 
 @router.post(

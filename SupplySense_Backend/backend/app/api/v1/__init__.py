@@ -21,6 +21,7 @@ from backend.app.api.v1.executive import router as executive_router
 from backend.app.api.v1.settings import router as settings_router
 from backend.app.api.v1.transfers import router as transfers_router
 from backend.app.api.v1.reports import router as reports_router
+from backend.app.api.v1.demo import router as demo_router
 
 api_v1_router = APIRouter()
 
@@ -39,5 +40,6 @@ api_v1_router.include_router(executive_router)
 api_v1_router.include_router(settings_router)
 api_v1_router.include_router(transfers_router)
 api_v1_router.include_router(reports_router)
+api_v1_router.include_router(demo_router)
 
 __all__ = ["api_v1_router"]
