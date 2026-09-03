@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update, delete
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from models import Shipment, GoodsReceived, PurchaseOrder, PurchaseOrderItem, Inventory, Product, Warehouse, Supplier, StockTransfer
 from backend.app.schemas.shipment import (
@@ -48,109 +48,41 @@ async def list_shipments(
             meta=PaginationMeta(**cached["meta"]),
         )
 
-    # Query active shipments
-    stmt = select(Shipment).order_by(Shipment.dispatch_date.desc())
+    # 1. Query shipments with eager loaded relationships in a single fast query
+    stmt = (
+        select(Shipment)
+        .options(
+            joinedload(Shipment.purchase_order).joinedload(PurchaseOrder.supplier),
+            joinedload(Shipment.purchase_order).joinedload(PurchaseOrder.warehouse),
+            joinedload(Shipment.purchase_order).selectinload(PurchaseOrder.items).joinedload(PurchaseOrderItem.product),
+            selectinload(Shipment.goods_received),
+        )
+        .order_by(Shipment.dispatch_date.desc())
+        .limit(limit)
+        .offset((page - 1) * limit)
+    )
     if status_filter and status_filter.lower() != "all":
         stmt = stmt.where(Shipment.current_status.ilike(status_filter))
 
     res = await db.execute(stmt)
-    shipments = res.scalars().all()
+    shipments = res.scalars().unique().all()
 
-    # Ensure all Purchase Orders have a trackable Shipment record
-    all_pos_res = await db.execute(select(PurchaseOrder))
-    all_pos = all_pos_res.scalars().all()
+    items: List[ShipmentResponse] = []
+    today = date.today()
 
-    existing_po_shipment_ids = set([s.purchase_order_id for s in shipments if s.purchase_order_id])
-    missing_pos = [po for po in all_pos if po.id not in existing_po_shipment_ids]
-
-    if missing_pos:
-        today = date.today()
-        for i, po in enumerate(missing_pos):
-            carrier_name = "BlueDart Express" if i % 2 == 0 else "VRL Logistics"
-            vehicle_num = f"MH-04-SS-88{i+1}2"
-            shp_status = "DELIVERED" if po.status == "Approved" else ("COMPLETED" if po.status == "Completed" else "IN_TRANSIT")
-            new_shp = Shipment(
-                id=str(uuid.uuid4()),
-                purchase_order_id=po.id,
-                carrier=carrier_name,
-                vehicle_number=vehicle_num,
-                current_status=shp_status,
-                current_location="Mumbai Western Hub Gate #3" if shp_status == "DELIVERED" else "Surat-Delhi Highway Corridor",
-                dispatch_date=po.order_date or (today - timedelta(days=2)),
-                expected_arrival=po.expected_delivery_date or (today + timedelta(days=4)),
-                delay_days=0,
-            )
-            db.add(new_shp)
-        await db.commit()
-
-        # Re-fetch synchronized shipments
-        stmt = select(Shipment).order_by(Shipment.dispatch_date.desc())
-        if status_filter and status_filter.lower() != "all":
-            stmt = stmt.where(Shipment.current_status.ilike(status_filter))
-        shipments = (await db.execute(stmt)).scalars().all()
-
-    # Pre-fetch POs, items, and GRNs for rich metadata
-    po_ids = list(set([s.purchase_order_id for s in shipments if s.purchase_order_id]))
-    po_map = {}
-    if po_ids:
-        po_stmt = select(PurchaseOrder).where(PurchaseOrder.id.in_(po_ids))
-        po_res = await db.execute(po_stmt)
-        for po in po_res.scalars().all():
-            po_map[po.id] = po
-
-    po_item_map = {}
-    if po_ids:
-        poi_stmt = select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id.in_(po_ids))
-        poi_res = await db.execute(poi_stmt)
-        for poi in poi_res.scalars().all():
-            po_item_map[poi.purchase_order_id] = poi
-
-    grn_map = {}
-    shipment_ids = [s.id for s in shipments]
-    if shipment_ids:
-        grn_stmt = select(GoodsReceived).where(GoodsReceived.shipment_id.in_(shipment_ids))
-        grn_res = await db.execute(grn_stmt)
-        for grn in grn_res.scalars().all():
-            grn_map[grn.shipment_id] = grn
-
-    prod_map = {}
-    prod_ids = list(set([poi.product_id for poi in po_item_map.values() if poi.product_id]))
-    if prod_ids:
-        p_stmt = select(Product).where(Product.id.in_(prod_ids))
-        p_res = await db.execute(p_stmt)
-        for p in p_res.scalars().all():
-            prod_map[p.id] = p
-
-    supp_map = {}
-    supp_ids = list(set([po.supplier_id for po in po_map.values() if po.supplier_id]))
-    if supp_ids:
-        s_stmt = select(Supplier).where(Supplier.id.in_(supp_ids))
-        s_res = await db.execute(s_stmt)
-        for s in s_res.scalars().all():
-            supp_map[s.id] = s
-
-    wh_map = {}
-    wh_ids = list(set([po.warehouse_id for po in po_map.values() if po.warehouse_id]))
-    if wh_ids:
-        w_stmt = select(Warehouse).where(Warehouse.id.in_(wh_ids))
-        w_res = await db.execute(w_stmt)
-        for w in w_res.scalars().all():
-            wh_map[w.id] = w
-
-    items = []
     for s in shipments:
-        po = po_map.get(s.purchase_order_id)
-        poi = po_item_map.get(s.purchase_order_id)
-        prod = prod_map.get(poi.product_id) if poi else None
-        supp = supp_map.get(po.supplier_id) if po else None
-        wh = wh_map.get(po.warehouse_id) if po else None
-        grn = grn_map.get(s.id)
+        po = s.purchase_order
+        poi = po.items[0] if (po and po.items) else None
+        prod = poi.product if poi else None
+        supp = po.supplier if po else None
+        wh = po.warehouse if po else None
+        grn = s.goods_received[0] if s.goods_received else None
 
         items.append(
             ShipmentResponse(
                 id=s.id,
                 purchase_order_id=s.purchase_order_id,
-                po_number=po.po_number if po and hasattr(po, "po_number") else f"PO-{s.purchase_order_id[:6].upper()}",
+                po_number=f"PO-{str(s.purchase_order_id)[:6].upper()}",
                 product_name=prod.name if prod else "Boat Television Gen 10",
                 sku=prod.sku if prod else "SKU-BOA-0337",
                 quantity=poi.quantity if poi else 1200,
@@ -158,8 +90,8 @@ async def list_shipments(
                 vehicle_number=s.vehicle_number or "MH-04-SS-8842",
                 current_status=s.current_status,
                 current_location=s.current_location or "Surat Gateway Terminal",
-                dispatch_date=s.dispatch_date or date.today() - timedelta(days=2),
-                expected_arrival=s.expected_arrival or date.today() + timedelta(days=5),
+                dispatch_date=s.dispatch_date or (today - timedelta(days=2)),
+                expected_arrival=s.expected_arrival or (today + timedelta(days=5)),
                 actual_arrival=s.actual_arrival,
                 delay_days=s.delay_days or 0,
                 delay_reason=s.delay_reason,

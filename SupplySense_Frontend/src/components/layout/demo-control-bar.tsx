@@ -27,7 +27,6 @@ import {
 export function DemoControlBar() {
   const queryClient = useQueryClient();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [lastActionToast, setLastActionToast] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Poll demo status every 5 seconds
@@ -37,7 +36,7 @@ export function DemoControlBar() {
     refetchInterval: 5000,
   });
 
-  const isRunning = status?.is_running ?? true;
+  const isRunning = status?.is_running ?? false;
 
   // Toggle Start / Stop
   const toggleMutation = useMutation({
@@ -51,7 +50,6 @@ export function DemoControlBar() {
     onSuccess: (newData) => {
       queryClient.setQueryData(["demoStatus"], newData);
       queryClient.invalidateQueries();
-      showToast(newData.is_running ? "🟢 Cloud ERP Feed Resumed" : "⏸️ Cloud ERP Feed Paused");
     },
   });
 
@@ -60,11 +58,9 @@ export function DemoControlBar() {
     mutationFn: async (eventType: string) => {
       return await triggerDemoEvent(eventType);
     },
-    onSuccess: (res) => {
+    onSuccess: () => {
       queryClient.invalidateQueries();
       refetch();
-      const title = res?.title || "ERP Event Triggered";
-      showToast(`⚡ ${title}`);
       setDropdownOpen(false);
     },
   });
@@ -77,17 +73,9 @@ export function DemoControlBar() {
     onSuccess: () => {
       queryClient.invalidateQueries();
       refetch();
-      showToast("🔄 Demo Data Reset to Pristine Baseline");
       setDropdownOpen(false);
     },
   });
-
-  const showToast = (msg: string) => {
-    setLastActionToast(msg);
-    setTimeout(() => {
-      setLastActionToast(null);
-    }, 4000);
-  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -107,7 +95,6 @@ export function DemoControlBar() {
         type="button"
         onClick={() => toggleMutation.mutate()}
         disabled={toggleMutation.isPending}
-        title={isRunning ? "Click to Pause live cloud ERP event loop" : "Click to Resume live cloud ERP event loop"}
         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer shadow-2xs border ${
           isRunning
             ? "border-[#16A34A]/30 bg-[#F0FDF4] text-[#16A34A] hover:bg-[#DCFCE7]"
@@ -233,14 +220,6 @@ export function DemoControlBar() {
           </div>
         )}
       </div>
-
-      {/* Floating Demo Feedback Toast */}
-      {lastActionToast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#111827] text-white text-xs font-semibold shadow-2xl border border-[#374151] animate-in slide-in-from-bottom-2 fade-in-0 duration-200">
-          <Sparkles className="h-3.5 w-3.5 text-[#38BDF8]" />
-          <span>{lastActionToast}</span>
-        </div>
-      )}
     </div>
   );
 }

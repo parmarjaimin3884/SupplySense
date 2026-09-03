@@ -67,6 +67,7 @@ export function AppShell({ children }: AppShellProps) {
   const { unreadCount, setIsDrawerOpen } = useNotifications();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const isUserAdmin = user?.role ? user.role.toLowerCase() === "admin" : isAdmin;
 
   const queryClient = useQueryClient();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -157,7 +158,7 @@ export function AppShell({ children }: AppShellProps) {
         { title: "Settings", href: "/settings", icon: Settings },
       ],
     },
-  ].filter((sec) => sec.role === "all" || (sec.role === "admin" && isAdmin));
+  ].filter((sec) => sec.role === "all" || (sec.role === "admin" && isUserAdmin));
 
   if (!authVerified) {
     return (
@@ -292,14 +293,16 @@ export function AppShell({ children }: AppShellProps) {
                 </div>
 
                 <div className="py-1">
-                  <Link
-                    href="/settings"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F9FAFB] transition-colors"
-                  >
-                    <Settings className="h-3.5 w-3.5" />
-                    <span>Workspace Settings</span>
-                  </Link>
+                  {isUserAdmin && (
+                    <Link
+                      href="/settings"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F9FAFB] transition-colors"
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                      <span>Workspace Settings</span>
+                    </Link>
+                  )}
                   <Link
                     href="/settings/notifications"
                     onClick={() => setUserDropdownOpen(false)}
@@ -308,14 +311,16 @@ export function AppShell({ children }: AppShellProps) {
                     <Bell className="h-3.5 w-3.5" />
                     <span>Notification Preferences</span>
                   </Link>
-                  <Link
-                    href="/settings/users"
-                    onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F9FAFB] transition-colors"
-                  >
-                    <Shield className="h-3.5 w-3.5" />
-                    <span>Security & RBAC</span>
-                  </Link>
+                  {isUserAdmin && (
+                    <Link
+                      href="/settings/users"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-[#4B5563] hover:text-[#111827] hover:bg-[#F9FAFB] transition-colors"
+                    >
+                      <Shield className="h-3.5 w-3.5" />
+                      <span>Security & RBAC</span>
+                    </Link>
+                  )}
                 </div>
 
                 <div className="pt-1 border-t border-[#F3F4F6]">

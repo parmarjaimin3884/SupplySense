@@ -35,7 +35,18 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   const isHydrated = useAuthStore((state) => state.isHydrated);
 
   // Derive role from auth store when authenticated
-  const [role, setRoleState] = useState<LegacyUserRole>("admin");
+  const [role, setRoleState] = useState<LegacyUserRole>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("supplysense_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return mapBackendRole(parsed.role);
+        }
+      } catch {}
+    }
+    return "inventory_manager";
+  });
   const [activeDC, setActiveDC] = useState<string>("Surat Central Warehouse (WH-SUR)");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # Live Cloud Demo Simulation Config
-    ENABLE_LIVE_ERP_SIMULATOR: bool = True
+    ENABLE_LIVE_ERP_SIMULATOR: bool = False
     SIMULATION_INTERVAL_SECONDS: float = 6.0
 
     # Security Config

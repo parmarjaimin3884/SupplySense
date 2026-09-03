@@ -31,6 +31,8 @@ import { useAuthStore } from "@/stores/useAuthStore";
 export default function SettingsPage() {
   const { isAdmin } = useRole();
   const authUser = useAuthStore((state) => state.user);
+  const isUserAdmin = authUser?.role ? authUser.role.toLowerCase() === "admin" : isAdmin;
+
   const [activeTab, setActiveTab] = useState<
     "organization" | "profile" | "warehouses" | "alerts" | "integrations" | "security"
   >("organization");
@@ -42,6 +44,31 @@ export default function SettingsPage() {
   // Profile API hooks
   const { data: profile } = useProfile();
   const updateProfileMutation = useUpdateProfile();
+
+  if (!isUserAdmin) {
+    return (
+      <AppShell>
+        <div className="max-w-md mx-auto my-20 p-8 rounded-3xl border border-[#E5E7EB] bg-white text-center space-y-4 shadow-sm animate-in fade-in">
+          <div className="w-12 h-12 rounded-2xl bg-[#FEF2F2] border border-[#DC2626]/20 flex items-center justify-center mx-auto text-[#DC2626]">
+            <Lock className="h-6 w-6" />
+          </div>
+          <h2 className="text-xl font-bold text-[#111827]">Access Restricted</h2>
+          <p className="text-xs text-[#6B7280] leading-relaxed">
+            Workspace Settings and enterprise platform configurations are restricted to <strong>Administrator</strong> accounts only.
+            Your current assigned role is <strong>Manager</strong>.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all"
+            >
+              Return to Dashboard
+            </Link>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   // Form States
   const [orgName, setOrgName] = useState("Enterprise Supply Chain Ltd");

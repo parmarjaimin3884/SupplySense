@@ -17,7 +17,17 @@ import axios, {
 } from "axios";
 import { ApiError } from "@/types/common";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+export function getDynamicBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host && host !== "localhost" && host !== "127.0.0.1") {
+      return `${window.location.protocol}//${host}:8000/api/v1`;
+    }
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+}
+
+const BASE_URL = getDynamicBaseUrl();
 
 // ──────────────────────────────────────────────
 // Token storage helpers (for use outside React)
@@ -67,6 +77,12 @@ const apiClient: AxiosInstance = axios.create({
 // ──────────────────────────────────────────────
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      if (host && host !== "localhost" && host !== "127.0.0.1") {
+        config.baseURL = `${window.location.protocol}//${host}:8000/api/v1`;
+      }
+    }
     const auth = getStoredAuth();
     if (auth?.accessToken) {
       config.headers.Authorization = `Bearer ${auth.accessToken}`;
@@ -135,7 +151,8 @@ apiClient.interceptors.response.use(
       const auth = getStoredAuth();
       if (auth?.refreshToken) {
         try {
-          const refreshResponse = await axios.post(`${BASE_URL}/auth/refresh`, {
+          const refreshUrl = `${getDynamicBaseUrl()}/auth/refresh`;
+          const refreshResponse = await axios.post(refreshUrl, {
             refresh_token: auth.refreshToken,
           });
 
@@ -155,7 +172,12 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           processQueue(refreshError, null);
           clearStoredAuth();
-          if (typeof window !== "undefined" && window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
+          if (
+            typeof window !== "undefined" &&
+            window.location.pathname !== "/login" &&
+            window.location.pathname !== "/signup" &&
+            window.location.pathname !== "/"
+          ) {
             window.location.href = "/login";
           }
           return Promise.reject(refreshError);
@@ -164,7 +186,12 @@ apiClient.interceptors.response.use(
         }
       } else {
         clearStoredAuth();
-        if (typeof window !== "undefined" && window.location.pathname !== "/login" && window.location.pathname !== "/signup") {
+        if (
+          typeof window !== "undefined" &&
+          window.location.pathname !== "/login" &&
+          window.location.pathname !== "/signup" &&
+          window.location.pathname !== "/"
+        ) {
           window.location.href = "/login";
         }
       }

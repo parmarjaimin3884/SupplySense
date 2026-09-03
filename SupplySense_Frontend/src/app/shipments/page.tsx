@@ -252,11 +252,17 @@ export default function ShipmentsPage() {
 
               <tbody className="divide-y divide-[#E5E7EB]">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-[#6B7280]">
-                      Loading shipments...
-                    </td>
-                  </tr>
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-4 py-4"><div className="h-4 w-28 bg-[#F3F4F6] rounded-md" /></td>
+                      <td className="px-4 py-4"><div className="h-4 w-36 bg-[#F3F4F6] rounded-md" /></td>
+                      <td className="px-4 py-4"><div className="h-4 w-24 bg-[#F3F4F6] rounded-md" /></td>
+                      <td className="px-4 py-4"><div className="h-4 w-32 bg-[#F3F4F6] rounded-md" /></td>
+                      <td className="px-4 py-4"><div className="h-4 w-24 bg-[#F3F4F6] rounded-md" /></td>
+                      <td className="px-4 py-4"><div className="h-5 w-20 bg-[#F3F4F6] rounded-full" /></td>
+                      <td className="px-4 py-4"><div className="h-7 w-20 bg-[#F3F4F6] rounded-xl" /></td>
+                    </tr>
+                  ))
                 ) : filteredShipments.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-[#6B7280]">
