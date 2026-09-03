@@ -170,9 +170,19 @@ async def create_shipment(
     po_stmt = select(PurchaseOrder).where(PurchaseOrder.id == payload.purchase_order_id)
     po = (await db.execute(po_stmt)).scalars().first()
     if not po:
-        # Check by string prefix match
-        po_stmt_prefix = select(PurchaseOrder).limit(1)
-        po = (await db.execute(po_stmt_prefix)).scalars().first()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Purchase order '{payload.purchase_order_id}' not found.",
+        )
+
+    existing_shipment = (await db.execute(
+        select(Shipment).where(Shipment.purchase_order_id == po.id)
+    )).scalars().first()
+    if existing_shipment:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Shipment already exists for purchase order '{po.id}'.",
+        )
 
     today = date.today()
     shipment_id = str(uuid.uuid4())

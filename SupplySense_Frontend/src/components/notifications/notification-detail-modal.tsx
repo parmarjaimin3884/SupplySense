@@ -116,8 +116,15 @@ export function NotificationDetailModal() {
             </p>
           </div>
 
-          {/* Operational Metrics (Affected Inventory & Suppliers) */}
+          {/* Operational Metrics from the alert condition */}
+          {(item.affectedSKU || item.productName || item.warehouseName || item.currentStock !== undefined || item.reorderLevel !== undefined || item.supplier || item.delayDays !== undefined) && (
           <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-[#FAFAFA] border border-[#E5E7EB]">
+            {item.productName && (
+              <div>
+                <span className="text-[10px] text-[#6B7280] block">Product</span>
+                <strong className="text-[#111827] text-xs">{item.productName}</strong>
+              </div>
+            )}
             {item.affectedSKU && (
               <div>
                 <span className="text-[10px] text-[#6B7280] block">Affected Inventory</span>
@@ -127,6 +134,20 @@ export function NotificationDetailModal() {
                     Current Stock: <strong className="text-[#111827]">{item.currentStock} ea</strong>
                   </span>
                 )}
+              </div>
+            )}
+
+            {item.warehouseName && (
+              <div>
+                <span className="text-[10px] text-[#6B7280] block">Warehouse</span>
+                <strong className="text-[#111827] text-xs">{item.warehouseName}</strong>
+              </div>
+            )}
+
+            {item.reorderLevel !== undefined && (
+              <div>
+                <span className="text-[10px] text-[#6B7280] block">Reorder Threshold</span>
+                <strong className="text-[#111827] font-mono text-xs">{item.reorderLevel} units</strong>
               </div>
             )}
 
@@ -162,6 +183,7 @@ export function NotificationDetailModal() {
               </div>
             )}
           </div>
+          )}
 
           {/* AI Recommendation & Insight */}
           <div className="p-3.5 rounded-xl bg-[#EFF6FF] border border-[#2563EB]/20 space-y-1.5">

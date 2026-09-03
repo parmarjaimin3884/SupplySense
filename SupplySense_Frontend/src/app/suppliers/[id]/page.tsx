@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -32,18 +32,6 @@ export default function SupplierProfilePage({
   const [inquirySent, setInquirySent] = useState(false);
   const [reallocatedSupplierIds, setReallocatedSupplierIds] = useState<string[]>([]);
 
-  // Restore reallocated vendor IDs from localStorage across reloads
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("supplysense_reallocated_vendors");
-      if (saved) {
-        setReallocatedSupplierIds(JSON.parse(saved));
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, []);
-
   // Fetch real supplier profile & alternate backup vendors from DB
   const { data: dbSupplier, isLoading, error, refetch } = useSupplierDetail(resolvedParams.id);
   const { data: alternateRecs } = useAlternateSuppliers(resolvedParams.id);
@@ -57,17 +45,9 @@ export default function SupplierProfilePage({
         reallocation_percentage: 100,
         reason: `Reallocated sourcing volume to ${altName} due to risk profile optimization.`,
       });
-      const updated = [...reallocatedSupplierIds, altId];
-      setReallocatedSupplierIds(updated);
-      try {
-        localStorage.setItem("supplysense_reallocated_vendors", JSON.stringify(updated));
-      } catch {}
+      setReallocatedSupplierIds((prev) => (prev.includes(altId) ? prev : [...prev, altId]));
     } catch {
-      const updated = [...reallocatedSupplierIds, altId];
-      setReallocatedSupplierIds(updated);
-      try {
-        localStorage.setItem("supplysense_reallocated_vendors", JSON.stringify(updated));
-      } catch {}
+      // Keep the alternate supplier available when the server rejects the change.
     }
   };
 

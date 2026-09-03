@@ -29,7 +29,7 @@ export default function SKUDetailPage({
   params: Promise<{ sku: string }>;
 }) {
   const resolvedParams = use(params);
-  const { data: dbItem, isLoading } = useInventoryDetail(resolvedParams.sku);
+  const { data: dbItem, isLoading, error, refetch } = useInventoryDetail(resolvedParams.sku);
   const { data: inventoryList } = useInventoryList({ search: resolvedParams.sku, limit: 1 });
   const fetchedItem: any = dbItem || inventoryList?.data?.[0] || inventoryList?.items?.[0];
 
@@ -227,7 +227,7 @@ export default function SKUDetailPage({
         burnRatePerDay: Math.max(1, Math.round((fetchedItem.available_quantity || 100) / 14)),
         alternateSupplier: "Apex Global Semi",
       }
-    : fallbackFromDict || genericFallback;
+    : null;
 
   const createPOMutation = useCreatePurchaseOrder();
   const [poCreated, setPoCreated] = useState(false);
@@ -305,6 +305,19 @@ export default function SKUDetailPage({
     return (
       <AppShell>
         <div className="py-12 text-center text-[#6B7280]">Loading SKU telemetry...</div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell>
+        <div className="py-12 text-center text-[#DC2626]">
+          Failed to load SKU telemetry. Please try again.
+          <button type="button" onClick={() => refetch()} className="block mx-auto mt-3 underline">
+            Retry
+          </button>
+        </div>
       </AppShell>
     );
   }

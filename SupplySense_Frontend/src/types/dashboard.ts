@@ -30,4 +30,15 @@ export interface Alert {
   severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
   created_at: string;
   is_resolved: boolean;
+  title?: string;
+  category?: string;
+  product_name?: string;
+  affected_sku?: string;
+  warehouse_name?: string;
+  current_stock?: number;
+  reorder_level?: number;
+  supplier_name?: string;
+  delay_days?: number;
+  recommended_action?: string;
+  ai_insight?: string;
 }

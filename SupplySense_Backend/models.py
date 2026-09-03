@@ -142,6 +142,19 @@ class Inventory(Base):
         Index('idx_inventory_warehouse_product', 'warehouse_id', 'product_id', unique=True)
     )
 
+class ReorderDecision(Base):
+    __tablename__ = 'reorder_decisions'
+
+    id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
+    product_id = Column(UUID(as_uuid=False), ForeignKey('products.id'), nullable=False)
+    warehouse_id = Column(UUID(as_uuid=False), ForeignKey('warehouses.id'), nullable=False)
+    decision = Column(String, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_reorder_decision_product_warehouse', 'product_id', 'warehouse_id', unique=True),
+    )
+
 class PurchaseOrder(Base):
     __tablename__ = 'purchase_orders'
     
@@ -345,3 +358,14 @@ class AIRiskAlert(Base):
     severity = Column(String, nullable=False)
     created_at = Column(Date, nullable=False)
     is_resolved = Column(Boolean, default=False)
+    title = Column(String)
+    category = Column(String)
+    product_name = Column(String)
+    affected_sku = Column(String)
+    warehouse_name = Column(String)
+    current_stock = Column(Integer)
+    reorder_level = Column(Integer)
+    supplier_name = Column(String)
+    delay_days = Column(Integer)
+    recommended_action = Column(Text)
+    ai_insight = Column(Text)

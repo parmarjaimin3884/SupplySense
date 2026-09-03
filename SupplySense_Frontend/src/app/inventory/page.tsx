@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -33,23 +33,7 @@ export default function InventoryPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("ALL");
   const [page, setPage] = useState(1);
-  const [stockCredits, setStockCredits] = useState<Record<string, number>>({});
-  const [transferredKeys, setTransferredKeys] = useState<string[]>([]);
-  const [localTransfers, setLocalTransfers] = useState<any[]>([]);
   const limit = 10;
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("supplysense_inventory_stock_credits");
-      if (saved) setStockCredits(JSON.parse(saved));
-
-      const savedTrf = localStorage.getItem("supplysense_transferred_keys");
-      if (savedTrf) setTransferredKeys(JSON.parse(savedTrf));
-
-      const savedTrfList = localStorage.getItem("supplysense_local_transfers");
-      if (savedTrfList) setLocalTransfers(JSON.parse(savedTrfList));
-    } catch {}
-  }, []);
 
   const { data: warehouses } = useWarehouses();
   const { data: transferRecs, isLoading: isTransfersLoading, refetch: refetchTransfers } = useTransferRecommendations(4);
@@ -66,37 +50,7 @@ export default function InventoryPage() {
   });
   const { data: lowStockItems } = useLowStock();
 
-  const handleInitiateTransfer = async (rec: any, key: string) => {
-    // 1. Instant optimistic state update
-    setTransferredKeys((prev) => {
-      const updated = Array.from(new Set([...prev, key]));
-      try {
-        localStorage.setItem("supplysense_transferred_keys", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
-    // 2. Add to local dispatches immediately so it renders and persists on refresh
-    const newTrf = {
-      id: `TRF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      product_name: rec.product_name || "Audio / Tech Component",
-      sku: rec.sku || "SKU-TRF",
-      quantity: rec.recommended_transfer_qty || 1500,
-      from_warehouse_name: rec.from_warehouse_name || "Surat Central",
-      to_warehouse_name: rec.to_warehouse_name || "Mumbai Logistics Hub",
-      status: "IN_TRANSIT",
-      created_at: new Date().toISOString(),
-    };
-
-    setLocalTransfers((prev) => {
-      const updated = [newTrf, ...prev];
-      try {
-        localStorage.setItem("supplysense_local_transfers", JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
-    // 3. Trigger backend mutation asynchronously
+  const handleInitiateTransfer = async (rec: any) => {
     try {
       await initiateMutation.mutateAsync({
         from_warehouse_id: rec.from_warehouse_id || rec.from_warehouse_code,
@@ -109,7 +63,7 @@ export default function InventoryPage() {
     } catch {}
   };
 
-  const allActiveTransfers = [...localTransfers, ...(activeTransfers || [])];
+  const allActiveTransfers = activeTransfers || [];
   const items: InventoryItem[] = inventoryData?.data || [];
   const meta = inventoryData?.meta;
 
@@ -168,47 +122,7 @@ export default function InventoryPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(transferRecs || [
-              {
-                product_id: "mock-1",
-                product_name: "JBL Audio Soundbar Gen 8",
-                sku: "SKU-JBL-0092",
-                from_warehouse_name: "Surat Central",
-                from_warehouse_code: "WH-SUR",
-                from_available_qty: 5552,
-                from_utilization_pct: 46.9,
-                to_warehouse_name: "Mumbai Logistics Hub",
-                to_warehouse_code: "WH-MUM",
-                to_available_qty: 672,
-                to_reorder_level: 1671,
-                to_utilization_pct: 88.9,
-                recommended_transfer_qty: 2670,
-                reason: "Deficit at Mumbai (672 avail <= ROP 1671). Transfer 2670 from surplus at Surat.",
-                estimated_transit_days: 1,
-                estimated_cost_savings: 270940,
-              },
-              {
-                product_id: "mock-2",
-                product_name: "Boat Smart Television Gen 10",
-                sku: "SKU-BOA-0337",
-                from_warehouse_name: "Surat Central",
-                from_warehouse_code: "WH-SUR",
-                from_available_qty: 5973,
-                from_utilization_pct: 46.9,
-                to_warehouse_name: "Delhi Northern Depot",
-                to_warehouse_code: "WH-DEL",
-                to_available_qty: 1727,
-                to_reorder_level: 2172,
-                to_utilization_pct: 90.1,
-                recommended_transfer_qty: 2617,
-                reason: "Deficit at Delhi (1727 avail <= ROP 2172). Transfer 2617 from surplus at Surat.",
-                estimated_transit_days: 2,
-                estimated_cost_savings: 155120,
-              }
-            ]).map((rec, idx) => {
-              const itemKey = `${rec.sku}-${rec.from_warehouse_code}-${rec.to_warehouse_code}`;
-              const isTransferred = transferredKeys.includes(itemKey);
-
+            {(transferRecs || []).map((rec, idx) => {
               return (
                 <div
                   key={idx}
@@ -255,21 +169,15 @@ export default function InventoryPage() {
                       Transit SLA: <strong className="text-[#111827]">{rec.estimated_transit_days} day(s)</strong>
                     </span>
 
-                    {isTransferred ? (
-                      <span className="text-xs font-semibold text-[#16A34A] flex items-center gap-1">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Transfer Dispatched
-                      </span>
-                    ) : (
-                      <button
+                    <button
                         type="button"
-                        onClick={() => handleInitiateTransfer(rec, itemKey)}
+                        onClick={() => handleInitiateTransfer(rec)}
                         disabled={initiateMutation.isPending}
                         className="h-8 px-3 rounded-lg bg-[#059669] text-white text-xs font-semibold hover:bg-[#047857] active:scale-[0.98] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
                       >
                         <ArrowRightLeft className="h-3 w-3" />
                         <span>Initiate Stock Transfer ({rec.recommended_transfer_qty} Units)</span>
                       </button>
-                    )}
                   </div>
                 </div>
               );
@@ -404,10 +312,8 @@ export default function InventoryPage() {
                   </tr>
                 ) : (
                   items.map((item) => {
-                    const itemKey = item.sku || item.id || "";
-                    const addedQty = itemKey ? (stockCredits[itemKey] || 0) : 0;
-                    const effectiveOnHand = item.quantity_on_hand + addedQty;
-                    const effectiveAvailable = item.available_quantity + addedQty;
+                    const effectiveOnHand = item.quantity_on_hand;
+                    const effectiveAvailable = item.available_quantity;
 
                     return (
                       <tr key={item.id} className="hover:bg-[#F9FAFB] transition-colors">
@@ -427,7 +333,6 @@ export default function InventoryPage() {
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-[#16A34A] font-bold">
                           {effectiveAvailable.toLocaleString()}
-                          {addedQty > 0 && <span className="text-[9px] block text-[#16A34A] font-semibold">(+{addedQty.toLocaleString()} GRN)</span>}
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-[#6B7280]">
                           {item.reserved_quantity.toLocaleString()}

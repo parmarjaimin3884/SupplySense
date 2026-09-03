@@ -27,16 +27,17 @@ from backend.app.config.settings import settings
 from backend.app.utils.logger import logger
 from backend.app.api.v1 import api_v1_router
 from backend.app.schemas.common import ErrorResponse, ErrorDetail
-from backend.app.services.erp_simulator import start_simulation, stop_simulation
+from backend.app.services.alert_monitor import start_alert_monitor, stop_alert_monitor
+from backend.app.database.database import async_engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.ENABLE_LIVE_ERP_SIMULATOR:
-        logger.info(f"Auto-starting Live Cloud ERP Stream Simulator (Interval: {settings.SIMULATION_INTERVAL_SECONDS}s)")
-        start_simulation(interval_seconds=settings.SIMULATION_INTERVAL_SECONDS)
+    logger.info("Starting automatic database alert monitor (interval: 15s)")
+    start_alert_monitor(interval_seconds=15.0)
     yield
-    stop_simulation()
+    await stop_alert_monitor()
+    await async_engine.dispose()
 
 
 # Initialize FastAPI App Foundation

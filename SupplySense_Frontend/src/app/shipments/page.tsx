@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Truck,
   Package,
@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useShipmentList, useUpdateShipmentStatus, useSimulateCarrierTelemetry } from "@/hooks/useShipments";
-import { usePurchaseOrderList } from "@/hooks/usePurchaseOrders";
 import { ReceiveShipmentModal } from "@/components/shipments/receive-shipment-modal";
 import { CreateShipmentModal } from "@/components/shipments/create-shipment-modal";
 import { ShipmentItem } from "@/lib/api/shipments";
@@ -31,94 +30,16 @@ export default function ShipmentsPage() {
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const [completedShipmentIds, setCompletedShipmentIds] = useState<string[]>([]);
-  const [localShipments, setLocalShipments] = useState<ShipmentItem[]>([]);
-  const [localPOs, setLocalPOs] = useState<any[]>([]);
-  const [customStatuses, setCustomStatuses] = useState<Record<string, string>>({});
 
   const updateStatusMutation = useUpdateShipmentStatus();
   const simulateTelemetryMutation = useSimulateCarrierTelemetry();
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("supplysense_completed_shipments");
-        if (saved) setCompletedShipmentIds(JSON.parse(saved));
-
-        const savedLocal = localStorage.getItem("supplysense_local_shipments");
-        if (savedLocal) setLocalShipments(JSON.parse(savedLocal));
-
-        const savedPOs = localStorage.getItem("supplysense_local_pos_list");
-        if (savedPOs) setLocalPOs(JSON.parse(savedPOs));
-
-        const savedStatuses = localStorage.getItem("supplysense_custom_shipment_statuses");
-        if (savedStatuses) setCustomStatuses(JSON.parse(savedStatuses));
-      } catch {}
-    }
-  }, []);
-
   const { data: shipmentData, isLoading, refetch } = useShipmentList({
     status: statusFilter !== "all" ? statusFilter : undefined,
   });
-  const { data: poData } = usePurchaseOrderList({ limit: 50 });
 
   const dbList: ShipmentItem[] = shipmentData?.data || (shipmentData as any)?.items || [];
-  const dbPOs: any[] = poData?.items || poData?.data || [];
-
-  // Combine POs from DB and Local Storage
-  const allPOs = [...localPOs, ...dbPOs];
-
-  // Auto-generate dynamic shipment rows for POs missing a direct shipment object
-  const existingPoNums = new Set([
-    ...dbList.map((s) => s.po_number || s.purchase_order_id),
-    ...localShipments.map((s) => s.po_number || s.purchase_order_id),
-  ]);
-
-  const poShipments: ShipmentItem[] = [];
-  allPOs.forEach((po, index) => {
-    const poNum = po.poNumber || po.po_number || po.id;
-    if (!existingPoNums.has(poNum) && !existingPoNums.has(po.id)) {
-      existingPoNums.add(poNum);
-      const isApproved = po.status === "Approved" || po.status === "approved";
-      const isCompleted = completedShipmentIds.includes(po.id) || completedShipmentIds.includes(poNum) || po.status === "Completed";
-
-      poShipments.push({
-        id: `SHP-${poNum}`,
-        purchase_order_id: po.id,
-        po_number: poNum,
-        product_name: po.productName || po.items?.[0]?.product_name || "JBL AudiGen 8",
-        sku: po.sku || po.items?.[0]?.sku || "SKU-JBL-0092",
-        quantity: po.quantity || 1671,
-        carrier: index % 2 === 0 ? "BlueDart Express" : "VRL Logistics",
-        vehicle_number: `MH-04-SS-88${index + 1}2`,
-        current_status: isCompleted ? "COMPLETED" : isApproved ? "DELIVERED" : "IN_TRANSIT",
-        current_location: isApproved ? "Mumbai Western Hub Gate #3" : "Surat-Delhi Highway Corridor",
-        dispatch_date: po.orderDate || "2026-08-28",
-        expected_arrival: po.expectedDelivery || "2026-09-04",
-        delay_days: 0,
-        supplier_name: po.supplier || "Samsung Electronics",
-        warehouse_name: po.warehouse || "Mumbai Western Hub",
-      });
-    }
-  });
-
-  const combinedShipments = [...localShipments, ...dbList, ...poShipments].map((s) => {
-    const isReceived =
-      s.current_status === "COMPLETED" ||
-      completedShipmentIds.includes(s.id) ||
-      (s.po_number && completedShipmentIds.includes(s.po_number)) ||
-      (s.purchase_order_id && completedShipmentIds.includes(s.purchase_order_id));
-
-    if (isReceived) {
-      return { ...s, current_status: "COMPLETED" as const };
-    }
-
-    const override = customStatuses[s.id] || (s.po_number ? customStatuses[s.po_number] : undefined);
-    if (override) {
-      return { ...s, current_status: override as any };
-    }
-    return s;
-  });
+  const combinedShipments = dbList;
 
   const filteredShipments = combinedShipments.filter((s) => {
     const matchesSearch =
@@ -141,18 +62,6 @@ export default function ShipmentsPage() {
   };
 
   const handleReceivingSuccess = () => {
-    if (selectedShipmentForReceiving) {
-      setCompletedShipmentIds((prev) => [
-        ...prev,
-        selectedShipmentForReceiving.id,
-        selectedShipmentForReceiving.po_number || "",
-        selectedShipmentForReceiving.purchase_order_id || "",
-      ]);
-    }
-    try {
-      const saved = localStorage.getItem("supplysense_completed_shipments");
-      if (saved) setCompletedShipmentIds(JSON.parse(saved));
-    } catch {}
     refetch();
   };
 
@@ -337,15 +246,6 @@ export default function ShipmentsPage() {
                               value={s.current_status}
                               onChange={async (e) => {
                                 const newStatus = e.target.value;
-                                try {
-                                  const saved = localStorage.getItem("supplysense_custom_shipment_statuses");
-                                  const map = saved ? JSON.parse(saved) : {};
-                                  map[s.id] = newStatus;
-                                  if (s.po_number) map[s.po_number] = newStatus;
-                                  localStorage.setItem("supplysense_custom_shipment_statuses", JSON.stringify(map));
-                                  setCustomStatuses(map);
-                                } catch {}
-
                                 try {
                                   await updateStatusMutation.mutateAsync({
                                     id: s.id,

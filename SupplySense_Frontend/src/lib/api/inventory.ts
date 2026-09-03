@@ -26,6 +26,10 @@ export const inventoryApi = {
     return response.data.data;
   },
 
+  recordReorderDecision: async (payload: { product_id: string; warehouse_id: string; decision: "Rejected" }): Promise<void> => {
+    await apiClient.post("/inventory/reorder-decisions", payload);
+  },
+
   getOutOfStock: async (): Promise<InventoryItem[]> => {
     const response = await apiClient.get<BaseResponse<InventoryItem[]>>("/inventory/out-of-stock");
     return response.data.data;

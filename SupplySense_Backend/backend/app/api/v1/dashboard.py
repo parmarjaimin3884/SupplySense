@@ -7,9 +7,9 @@ import asyncio
 from typing import List
 from decimal import Decimal
 from datetime import datetime
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, update, delete
 
 from models import Inventory, Product, Shipment, Supplier, AIRiskAlert, Warehouse, PurchaseOrder
 from backend.app.schemas.dashboard import DashboardSummaryResponse, KPICardResponse, AlertResponse
@@ -133,7 +133,7 @@ async def get_kpis(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[KPIC
 )
 async def get_alerts(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[AlertResponse]]:
     """Returns active risk alerts dynamically from database."""
-    stmt = select(AIRiskAlert).order_by(AIRiskAlert.created_at.desc()).limit(10)
+    stmt = select(AIRiskAlert).order_by(AIRiskAlert.created_at.desc())
     db_alerts = (await db.execute(stmt)).scalars().all()
 
     alerts = []
@@ -146,8 +146,61 @@ async def get_alerts(db: AsyncSession = Depends(get_db)) -> BaseResponse[List[Al
                 message=a.message,
                 severity=a.severity,
                 created_at=created_str,
-                is_resolved=a.is_resolved
+                is_resolved=a.is_resolved,
+                title=a.title,
+                category=a.category,
+                product_name=a.product_name,
+                affected_sku=a.affected_sku,
+                warehouse_name=a.warehouse_name,
+                current_stock=a.current_stock,
+                reorder_level=a.reorder_level,
+                supplier_name=a.supplier_name,
+                delay_days=a.delay_days,
+                recommended_action=a.recommended_action,
+                ai_insight=a.ai_insight,
             )
         )
     return BaseResponse(success=True, message="Active alerts retrieved.", data=alerts)
+
+
+@router.patch(
+    "/alerts/resolve-all",
+    response_model=BaseResponse[bool],
+    status_code=status.HTTP_200_OK,
+    summary="Mark All Alerts as Read",
+    description="Marks all unresolved supply chain alerts as resolved in the database.",
+)
+async def resolve_all_alerts(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> BaseResponse[bool]:
+    """Persist the notification read state for the current alert set."""
+    await db.execute(
+        update(AIRiskAlert)
+        .where(AIRiskAlert.is_resolved == False)
+        .values(is_resolved=True)
+    )
+    await db.commit()
+    return BaseResponse(success=True, message="All alerts marked as read.", data=True)
+
+
+@router.delete(
+    "/alerts/{alert_id}",
+    response_model=BaseResponse[bool],
+    status_code=status.HTTP_200_OK,
+    summary="Delete an Alert",
+    description="Permanently deletes one supply chain alert from the database.",
+)
+async def delete_alert(
+    alert_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> BaseResponse[bool]:
+    """Permanently remove an alert from the database."""
+    result = await db.execute(delete(AIRiskAlert).where(AIRiskAlert.id == alert_id))
+    if result.rowcount == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found.")
+
+    await db.commit()
+    return BaseResponse(success=True, message="Alert deleted permanently.", data=True)
 

@@ -19,6 +19,7 @@ import { exportToCSV, exportToPDF } from "@/lib/export/reports-exporter";
 import { useInventoryList } from "@/hooks/useInventory";
 import { usePurchaseOrderList } from "@/hooks/usePurchaseOrders";
 import { useSupplierList } from "@/hooks/useSuppliers";
+import { useStockTransfers } from "@/hooks/useTransfers";
 
 export default function ReportsCenterPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -28,26 +29,18 @@ export default function ReportsCenterPage() {
   const { data: inventoryData } = useInventoryList({ limit: 100 });
   const { data: poData } = usePurchaseOrderList({ limit: 100 });
   const { data: supplierData } = useSupplierList({ limit: 100 });
+  const { data: transferData } = useStockTransfers(100);
 
   const handleExportPDFInventory = () => {
     const fetchedItems: any[] = inventoryData?.data || (inventoryData as any)?.items || [];
-    const defaultItems = [
-      { sku: "SKU-JBL-0092", name: "JBL AudiGen 8", warehouse_name: "Mumbai Western Hub", available_quantity: 672, reorder_level: 1671, unit_cost: 84555.33 },
-      { sku: "SKU-BOA-0337", name: "Boat Television Gen 10", warehouse_name: "Delhi Northern Depot", available_quantity: 1727, reorder_level: 1200, unit_cost: 32000.00 },
-      { sku: "SKU-CAN-0353", name: "Canon Smartphone Gen 2", warehouse_name: "Surat Central Depot", available_quantity: 1972, reorder_level: 1500, unit_cost: 24500.00 },
-      { sku: "SKU-ELEC-442", name: "Industrial Microcontroller IC", warehouse_name: "Surat Central Depot", available_quantity: 1200, reorder_level: 500, unit_cost: 800.00 },
-      { sku: "SKU-NET-24P", name: "24-Port Managed PoE+ Switch", warehouse_name: "Mumbai Western Hub", available_quantity: 450, reorder_level: 200, unit_cost: 18500.00 },
-    ];
-
-    const items = fetchedItems.length > 0 ? fetchedItems : defaultItems;
     const headers = ["SKU Code", "Product Name", "Warehouse Hub", "Stock On Hand (Units)", "Safety Buffer", "Total Valuation (in ₹)"];
-    const rows = items.map((item: any) => [
-      item.sku || "SKU-GEN",
-      item.name || item.product_name || "Enterprise Component",
-      item.warehouse_name || item.location || "Central Depot",
-      (item.available_quantity ?? item.quantity_on_hand ?? 500).toLocaleString("en-IN"),
-      (item.reorder_level ?? 100).toLocaleString("en-IN"),
-      `₹${Number((item.available_quantity ?? item.quantity_on_hand ?? 500) * (item.unit_cost ?? item.cost_price ?? 1000)).toLocaleString("en-IN")}`,
+    const rows = fetchedItems.map((item: any) => [
+      item.sku,
+      item.name || item.product_name,
+      item.warehouse_name || item.location,
+      (item.available_quantity ?? item.quantity_on_hand).toLocaleString("en-IN"),
+      item.reorder_level.toLocaleString("en-IN"),
+      `₹${Number((item.available_quantity ?? item.quantity_on_hand) * (item.unit_cost ?? item.cost_price)).toLocaleString("en-IN")}`,
     ]);
 
     exportToPDF(
@@ -60,31 +53,23 @@ export default function ReportsCenterPage() {
   };
 
   const handleExportCSVPurchaseOrders = () => {
-    let localOrders: any[] = [];
-    try {
-      const saved = localStorage.getItem("supplysense_local_pos_list");
-      if (saved) localOrders = JSON.parse(saved);
-    } catch {}
-
     const fetchedPos: any[] = poData?.items || poData?.data || [];
     const mappedFetched = fetchedPos.map((p: any) => {
       const firstItem = p.items?.[0] || {};
       return {
-        poNumber: p.po_number || `PO-${p.id.slice(0, 6).toUpperCase()}`,
-        productName: firstItem.product_name || p.product_name || p.productName || "Industrial Supply Component",
-        sku: firstItem.sku || p.sku || "SKU-IND-01",
-        supplier: p.supplier_name || p.supplier || "Samsung Electronics",
-        quantity: p.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || p.quantity || 100,
-        totalCost: Number(p.total_cost || p.total_amount || p.totalCost || 50000),
-        expectedDelivery: p.expected_delivery_date || p.expectedDelivery || "14 Days",
-        status: p.status || "Pending",
+        poNumber: p.po_number,
+        productName: firstItem.product_name || p.product_name || p.productName,
+        sku: firstItem.sku || p.sku,
+        supplier: p.supplier_name || p.supplier || "",
+        quantity: p.items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || p.quantity,
+        totalCost: Number(p.total_cost || p.total_amount || p.totalCost || 0),
+        expectedDelivery: p.expected_delivery_date || p.expectedDelivery,
+        status: p.status,
       };
     });
 
-    const combinedPOs = [...localOrders, ...mappedFetched];
-
     const headers = ["PO Number", "Product Name", "SKU Code", "Supplier / Vendor", "Quantity (Units)", "Total Cost (in ₹)", "Expected Delivery", "Status"];
-    const rows = combinedPOs.map((po: any) => [
+    const rows = mappedFetched.map((po: any) => [
       po.poNumber || po.po_number,
       po.productName || po.product_name,
       po.sku,
@@ -100,23 +85,14 @@ export default function ReportsCenterPage() {
 
   const handleExportPDFSuppliers = () => {
     const fetchedSuppliers: any[] = supplierData?.data || (supplierData as any)?.items || [];
-    const defaultSuppliers = [
-      { company_name: "Samsung Electronics India", city: "Mumbai", country: "India", reliability_score: 98.4, average_delay: 0.2, quality_score: 99, risk_rating: "LOW" },
-      { company_name: "ABC Electronics Corp", city: "Delhi", country: "India", reliability_score: 96.8, average_delay: 0.5, quality_score: 97, risk_rating: "LOW" },
-      { company_name: "Kyoto Micro Tech Pvt Ltd", city: "Surat", country: "India", reliability_score: 94.2, average_delay: 1.2, quality_score: 95, risk_rating: "MEDIUM" },
-      { company_name: "Supplier 44 Pvt Ltd", city: "Ahmedabad", country: "India", reliability_score: 91.5, average_delay: 1.8, quality_score: 92, risk_rating: "MEDIUM" },
-      { company_name: "Supplier 28 Pvt Ltd", city: "Bangalore", country: "India", reliability_score: 88.9, average_delay: 2.5, quality_score: 90, risk_rating: "HIGH" },
-    ];
-
-    const suppliers = fetchedSuppliers.length > 0 ? fetchedSuppliers : defaultSuppliers;
     const headers = ["Supplier Name", "Origin Location", "On-Time Delivery (OTIF)", "Lead Time Variance", "Quality Score", "Risk Rating"];
-    const rows = suppliers.map((sup: any) => [
+    const rows = fetchedSuppliers.map((sup: any) => [
       sup.company_name || sup.name,
-      sup.city && sup.country ? `${sup.city}, ${sup.country}` : sup.country || "India",
-      `${sup.reliability_score || 95}%`,
-      `${sup.average_delay || 0.5} Days Variance`,
-      `${sup.quality_score || 96}/100`,
-      sup.risk_rating || "LOW",
+      sup.city && sup.country ? `${sup.city}, ${sup.country}` : sup.country,
+      `${sup.reliability_score}%`,
+      `${sup.average_delay} Days Variance`,
+      `${sup.quality_score}/100`,
+      sup.risk_rating,
     ]);
 
     exportToPDF(
@@ -129,38 +105,13 @@ export default function ReportsCenterPage() {
   };
 
   const handleExportCSVTransfers = () => {
-    let userTransfers: any[] = [];
-    try {
-      const saved = localStorage.getItem("supplysense_transferred_keys");
-      if (saved) {
-        const keys: string[] = JSON.parse(saved);
-        userTransfers = keys.map((k, i) => ({
-          dispatchId: `TRF-2026-${(800 + i).toString()}`,
-          origin: "Surat Central Hub",
-          destination: "Mumbai Western Hub",
-          quantity: 2670,
-          savings: "₹2,70,940",
-          status: "DISPATCHED",
-        }));
-      }
-    } catch {}
-
-    const defaultTransfers = [
-      { dispatchId: "TRF-2026-0801", origin: "Surat Central Hub", destination: "Mumbai Western Hub", quantity: 2670, savings: "₹2,70,940", status: "IN_TRANSIT" },
-      { dispatchId: "TRF-2026-0802", origin: "Surat Central Hub", destination: "Delhi Northern Depot", quantity: 1800, savings: "₹1,85,000", status: "INITIATED" },
-      { dispatchId: "TRF-2026-0803", origin: "Bangalore Logistics Park", destination: "Mumbai Western Hub", quantity: 950, savings: "₹98,500", status: "DELIVERED" },
-      { dispatchId: "TRF-2026-0804", origin: "Ahmedabad Main DC", destination: "Surat Central Hub", quantity: 1400, savings: "₹1,42,000", status: "DELIVERED" },
-    ];
-
-    const allTransfers = [...userTransfers, ...defaultTransfers];
-
     const headers = ["Dispatch ID", "Origin Warehouse Hub", "Destination Warehouse Hub", "Quantity (Units)", "Estimated Logistics Savings (in ₹)", "Status"];
-    const rows = allTransfers.map((t: any) => [
-      t.dispatchId,
-      t.origin,
-      t.destination,
+    const rows = (transferData || []).map((t) => [
+      t.id,
+      t.from_warehouse_name,
+      t.to_warehouse_name,
       t.quantity,
-      t.savings,
+      "",
       t.status,
     ]);
 

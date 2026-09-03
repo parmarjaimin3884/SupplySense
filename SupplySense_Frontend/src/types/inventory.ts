@@ -18,6 +18,12 @@ export interface InventoryItem {
   stock_status: "CRITICAL" | "LOW_STOCK" | "OPTIMAL" | "OVERSTOCK" | "OUT_OF_STOCK";
   total_value?: number | null;
   last_updated?: string | null;
+  unit_cost?: number | null;
+  reorder_level?: number | null;
+  supplier_id?: string | null;
+  lead_time?: number | null;
+  supplier_name?: string | null;
+  average_delay?: number | null;
 }
 
 export interface InventoryDetail extends InventoryItem {

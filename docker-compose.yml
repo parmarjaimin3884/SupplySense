@@ -14,7 +14,7 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8000
-      - ENABLE_LIVE_ERP_SIMULATOR=true
+      - ENABLE_LIVE_ERP_SIMULATOR=false
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s

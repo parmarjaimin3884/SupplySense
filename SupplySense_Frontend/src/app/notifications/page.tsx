@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowRight,
   ArrowUpRight,
   Bell,
   Check,
@@ -32,7 +31,6 @@ export default function FullNotificationsPage() {
     markAllRead,
     deleteNotification,
     setSelectedNotification,
-    triggerNewToast,
   } = useNotifications();
 
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "critical" | "high" | "medium" | "low">("all");
@@ -96,14 +94,6 @@ export default function FullNotificationsPage() {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => triggerNewToast()}
-              className="h-9 px-3.5 rounded-xl bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Bell className="h-3.5 w-3.5 text-[#60A5FA]" />
-              <span>Simulate Real-Time Alert</span>
-            </button>
           </div>
         </div>
 
@@ -298,14 +288,18 @@ export default function FullNotificationsPage() {
                             >
                               Details
                             </button>
-                            <Link
-                              href={item.actionUrl}
-                              onClick={() => markAsRead(item.id)}
-                              className="px-2.5 py-1 rounded bg-[#111827] text-white text-[11px] font-semibold hover:bg-black transition-colors flex items-center gap-1 shadow-2xs"
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm("Delete this notification permanently?")) {
+                                  deleteNotification(item.id);
+                                }
+                              }}
+                              className="px-2.5 py-1 rounded bg-[#DC2626] text-white text-[11px] font-semibold hover:bg-[#B91C1C] transition-colors flex items-center gap-1 shadow-2xs"
                             >
-                              <span>{item.actionLabel}</span>
-                              <ArrowRight className="h-3 w-3" />
-                            </Link>
+                              <Trash2 className="h-3 w-3" />
+                              <span>Delete</span>
+                            </button>
                           </div>
                         </td>
                       </tr>

@@ -5,6 +5,7 @@ import { X, Plus, Trash2, ShoppingBag, Building2, Calendar, AlertCircle, CheckCi
 import { useCreatePurchaseOrder } from "@/hooks/usePurchaseOrders";
 import { useSupplierList } from "@/hooks/useSuppliers";
 import { useWarehouses } from "@/hooks/useWarehouses";
+import { useInventoryList } from "@/hooks/useInventory";
 
 export interface InitialProductPayload {
   id: string;
@@ -29,25 +30,16 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
   const [internalOpen, setInternalOpen] = useState(isOpen);
   const { data: supplierData } = useSupplierList({ limit: 50 });
   const { data: warehouseData } = useWarehouses();
+  const { data: inventoryData } = useInventoryList({ limit: 100 });
   const createMutation = useCreatePurchaseOrder();
 
-  const suppliers = supplierData?.data || [
-    { id: "sup-alt-01", company_name: "Kyoto Micro Tech Pvt Ltd" },
-    { id: "sup-abc", company_name: "ABC Electronics Corp" },
-    { id: "sup-sam", company_name: "Samsung Electronics India" },
-    { id: "sup-supplier-44", company_name: "Supplier 44 Pvt Ltd" },
-  ];
+  const suppliers = supplierData?.data || [];
 
-  const warehouses = (Array.isArray(warehouseData) ? warehouseData : (warehouseData as any)?.data) || [
-    { id: "wh-del", name: "Delhi Northern Depot", warehouse_code: "WH-DEL" },
-    { id: "wh-mum", name: "Mumbai Western Hub", warehouse_code: "WH-MUM" },
-    { id: "wh-sur", name: "Surat Central Warehouse", warehouse_code: "WH-SUR" },
-    { id: "wh-ahm", name: "Ahmedabad Main DC", warehouse_code: "WH-AHM" },
-    { id: "wh-ban", name: "Bangalore Logistics Park", warehouse_code: "WH-BAN" },
-  ];
+  const warehouses = (Array.isArray(warehouseData) ? warehouseData : (warehouseData as any)?.data) || [];
+  const products = inventoryData?.data || (inventoryData as any)?.items || [];
 
   const resolveWarehouseId = () => {
-    if (!initialProduct) return warehouses[0]?.id || "wh-del";
+    if (!initialProduct) return "";
     const loc = (initialProduct.location || "").toLowerCase();
     const wid = (initialProduct.warehouse_id || "").toLowerCase();
 
@@ -56,15 +48,15 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
     if (loc.includes("surat") || wid.includes("sur")) return "wh-sur";
     if (loc.includes("bangalore") || wid.includes("ban")) return "wh-ban";
     if (loc.includes("ahmedabad") || wid.includes("ahm")) return "wh-ahm";
-    return initialProduct.warehouse_id || warehouses[0]?.id || "wh-del";
+    return initialProduct.warehouse_id || "";
   };
 
   const resolveSupplierId = () => {
-    if (!initialProduct) return suppliers[0]?.id || "sup-alt-01";
+    if (!initialProduct) return "";
     if (initialProduct.supplier_id) return initialProduct.supplier_id;
     if (initialProduct.sku?.includes("BOA")) return "sup-abc";
     if (initialProduct.sku?.includes("JBL")) return "sup-sam";
-    return suppliers[0]?.id || "sup-alt-01";
+    return "";
   };
 
   const [supplierId, setSupplierId] = useState(resolveSupplierId);
@@ -75,10 +67,10 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
 
   const [items, setItems] = useState(() => [
     {
-      product_id: initialProduct?.id || "prod-1",
-      product_name: initialProduct ? `${initialProduct.name} (${initialProduct.sku})` : "JBL Audio Soundbar Gen 8",
-      quantity: initialProduct?.quantity || 250,
-      unit_price: initialProduct?.unit_price || 1850.00,
+      product_id: initialProduct?.id || "",
+      product_name: initialProduct ? `${initialProduct.name} (${initialProduct.sku})` : "",
+      quantity: initialProduct?.quantity || 0,
+      unit_price: initialProduct?.unit_price || 0,
     },
   ]);
 
@@ -101,6 +93,15 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
     }
   }, [initialProduct]);
 
+  useEffect(() => {
+    if (!supplierId || initialProduct) return;
+    const supplier = suppliers.find((candidate: any) => candidate.id === supplierId);
+    const deliveryDays = Number(supplier?.lead_time || 0) + Number(supplier?.average_delay || 0);
+    if (deliveryDays > 0) {
+      setDeliveryDate(new Date(Date.now() + deliveryDays * 86400000).toISOString().split("T")[0]);
+    }
+  }, [supplierId, suppliers, initialProduct]);
+
   const handleClose = () => {
     setInternalOpen(false);
     onClose();
@@ -115,7 +116,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
   const handleAddItem = () => {
     setItems([
       ...items,
-      { product_id: `prod-${items.length + 1}`, product_name: "Boat Smart Television Gen 10", quantity: 100, unit_price: 3200.00 },
+      { product_id: "", product_name: "", quantity: 0, unit_price: 0 },
     ]);
   };
 
@@ -135,6 +136,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!supplierId || !warehouseId || items.some((item) => !item.product_id || item.quantity <= 0 || item.unit_price < 0)) return;
     try {
       await createMutation.mutateAsync({
         supplier_id: supplierId,
@@ -151,9 +153,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
       if (onSuccess) onSuccess();
       handleClose();
     } catch {
-      // Fallback close on demo mode
-      if (onSuccess) onSuccess();
-      handleClose();
+      return;
     }
   };
 
@@ -201,7 +201,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
                 <span>AI PROCUREMENT OPTIMIZATION RECOMMENDATION</span>
               </div>
               <span className="text-[10px] font-mono font-bold bg-[#2563EB] text-white px-2 py-0.5 rounded">
-                98.6% SLA MATCH
+                {targetSupplierObj?.lead_time ? `${targetSupplierObj.lead_time}d SUPPLIER LEAD TIME` : "LIVE SUPPLIER DATA"}
               </span>
             </div>
 
@@ -210,7 +210,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
                 <span className="text-[10px] text-[#6B7280] block font-medium">Target Deficit Hub:</span>
                 <strong className="text-[#111827] flex items-center gap-1">
                   <MapPin className="h-3 w-3 text-[#2563EB]" />
-                  <span>{targetWarehouseObj?.name || "Delhi Northern Depot"}</span>
+                  <span>{targetWarehouseObj?.name || "Select a warehouse"}</span>
                 </strong>
               </div>
 
@@ -218,7 +218,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
                 <span className="text-[10px] text-[#6B7280] block font-medium">Contracted Vendor SLA:</span>
                 <strong className="text-[#111827] flex items-center gap-1">
                   <Truck className="h-3 w-3 text-[#2563EB]" />
-                  <span>{targetSupplierObj?.company_name || "Primary Contracted Vendor"}</span>
+                  <span>{targetSupplierObj?.company_name || "Select a supplier"}</span>
                 </strong>
               </div>
             </div>
@@ -233,6 +233,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
                 onChange={(e) => setSupplierId(e.target.value)}
                 className="w-full h-9 px-3 text-xs bg-white border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#111827]"
               >
+                <option value="">Select supplier</option>
                 {suppliers.map((s: any) => (
                   <option key={s.id} value={s.id}>
                     {s.company_name || s.name}
@@ -249,6 +250,7 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
                 onChange={(e) => setWarehouseId(e.target.value)}
                 className="w-full h-9 px-3 text-xs bg-white border border-[#E5E7EB] rounded-xl focus:outline-none focus:border-[#111827]"
               >
+                <option value="">Select warehouse</option>
                 {warehouses.map((w: any) => (
                   <option key={w.id} value={w.id}>
                     {w.name} ({w.warehouse_code || w.id})
@@ -312,13 +314,33 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
                 <div key={idx} className="p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] space-y-2 text-xs">
                   <div className="grid grid-cols-12 gap-2 items-center">
                     <div className="col-span-5">
-                      <input
-                        type="text"
-                        value={item.product_name}
-                        onChange={(e) => handleItemChange(idx, "product_name", e.target.value)}
-                        placeholder="Product Description"
+                      <select
+                        value={item.product_id || ""}
+                        onChange={(e) => {
+                          const product = products.find((candidate: any) => String(candidate.product_id) === String(e.target.value));
+                          setItems((currentItems) => currentItems.map((currentItem, itemIndex) =>
+                            itemIndex === idx
+                              ? {
+                                  ...currentItem,
+                                  product_id: product?.product_id || "",
+                                  product_name: product?.product_name || "",
+                                  unit_price: Number(product?.unit_cost || currentItem.unit_price || 0),
+                                }
+                              : currentItem
+                          ));
+                        }}
                         className="w-full h-8 px-2.5 bg-white border border-[#E5E7EB] rounded-lg text-xs font-semibold"
-                      />
+                      >
+                        <option value="">Select product</option>
+                        {products.map((product: any, productIndex: number) => {
+                          const uniqueProductId = `${product.product_id || product.product_name || "product"}-${product.sku || productIndex}-${productIndex}`;
+                          return (
+                            <option key={String(uniqueProductId)} value={String(uniqueProductId)}>
+                              {product.product_name || product.name || "Unnamed product"} ({product.sku || product.product_id || "SKU"})
+                            </option>
+                          );
+                        })}
+                      </select>
                     </div>
 
                     <div className="col-span-2">

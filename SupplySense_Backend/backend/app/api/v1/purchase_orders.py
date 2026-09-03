@@ -4,6 +4,7 @@ SupplySense — Autonomous Procurement API v1 Router
 Endpoints for listing, searching, approving, and auditing Purchase Orders.
 """
 
+import uuid
 from typing import Optional, List
 from decimal import Decimal
 from datetime import date, timedelta
@@ -11,10 +12,11 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 
-from models import PurchaseOrder, Supplier, Warehouse, PurchaseOrderItem, Product
+from models import PurchaseOrder, Supplier, Warehouse, PurchaseOrderItem, Product, Shipment
 from backend.app.schemas.purchase_order import PurchaseOrderResponse, PurchaseOrderDetailResponse, PurchaseOrderItemSchema
 from backend.app.schemas.common import PaginationResponse, BaseResponse, PaginationMeta
 from backend.app.api.deps import get_db
+from backend.app.core.redis import delete_cache_pattern
 
 router = APIRouter(prefix="/purchase-orders", tags=["Autonomous Procurement"])
 
@@ -283,19 +285,19 @@ async def create_purchase_order(
     supplier_stmt = select(Supplier).where(or_(Supplier.id == payload.supplier_id, Supplier.company_name.ilike(f"%{payload.supplier_id}%")))
     supplier = (await db.execute(supplier_stmt)).scalars().first()
     if not supplier:
-        supplier = (await db.execute(select(Supplier).limit(1))).scalars().first()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Supplier '{payload.supplier_id}' not found.")
 
     warehouse_stmt = select(Warehouse).where(or_(Warehouse.id == payload.warehouse_id, Warehouse.warehouse_code == payload.warehouse_id, Warehouse.name.ilike(f"%{payload.warehouse_id}%")))
     warehouse = (await db.execute(warehouse_stmt)).scalars().first()
     if not warehouse:
-        warehouse = (await db.execute(select(Warehouse).limit(1))).scalars().first()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Warehouse '{payload.warehouse_id}' not found.")
 
-    s_id = supplier.id if supplier else "sup-sam"
-    s_name = supplier.company_name if supplier else "Samsung Electronics"
-    w_id = warehouse.id if warehouse else "wh-mum"
-    w_name = warehouse.name if warehouse else "Mumbai Western Hub"
+    s_id = supplier.id
+    s_name = supplier.company_name
+    w_id = warehouse.id
+    w_name = warehouse.name
 
-    po_id = f"po-{uuid.uuid4().hex[:8]}"
+    po_id = str(uuid.uuid4())
     today = date.today()
     deliv_date = payload.expected_delivery_date or (today + timedelta(days=7))
 
@@ -306,17 +308,17 @@ async def create_purchase_order(
         prod_stmt = select(Product).where(or_(Product.id == item.product_id, Product.sku == item.product_id))
         prod = (await db.execute(prod_stmt)).scalars().first()
         if not prod:
-            prod = (await db.execute(select(Product).limit(1))).scalars().first()
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product '{item.product_id}' not found.")
 
-        p_id = prod.id if prod else item.product_id
-        p_name = prod.name if prod else "JBL AudiGen 8"
-        p_sku = prod.sku if prod else "SKU-JBL-0092"
-        u_price = item.unit_price or (prod.cost_price if prod else Decimal("84555.33"))
+        p_id = prod.id
+        p_name = prod.name
+        p_sku = prod.sku
+        u_price = item.unit_price or prod.cost_price
 
         tot_price = u_price * item.quantity
         total_val += tot_price
 
-        item_id = f"poi-{uuid.uuid4().hex[:8]}"
+        item_id = str(uuid.uuid4())
         new_item = PurchaseOrderItem(
             id=item_id,
             purchase_order_id=po_id,
@@ -390,9 +392,45 @@ async def approve_purchase_order(
     po = (await db.execute(po_stmt)).scalar_one_or_none()
 
     if po:
+        existing_shipment = (await db.execute(
+            select(Shipment).where(Shipment.purchase_order_id == po.id)
+        )).scalars().first()
+        if existing_shipment:
+            return BaseResponse(
+                success=True,
+                message=f"Purchase Order '{id}' is already dispatched.",
+                data={"po_id": id, "status": po.status, "shipment_id": existing_shipment.id},
+            )
+
+        first_item = (await db.execute(
+            select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == po.id).limit(1)
+        )).scalars().first()
+        if not first_item:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Purchase order has no line items.")
+
         po.status = "Approved"
         po.approved_by = "Supply Chain Manager"
+        shipment = Shipment(
+            id=str(uuid.uuid4()),
+            purchase_order_id=po.id,
+            carrier="BlueDart Logistics",
+            vehicle_number="MH-04-SS-8842",
+            current_status="IN_TRANSIT",
+            current_location="Origin Dispatch Hub",
+            dispatch_date=date.today(),
+            expected_arrival=po.expected_delivery_date or (date.today() + timedelta(days=4)),
+            delay_days=0,
+        )
+        db.add(shipment)
+        po.status = "In Transit"
         await db.commit()
+        await delete_cache_pattern("*shipments*")
+        await delete_cache_pattern("po_list:*")
+        return BaseResponse(
+            success=True,
+            message=f"Purchase Order '{id}' approved and dispatched.",
+            data={"po_id": id, "status": "In Transit", "shipment_id": shipment.id},
+        )
 
     return BaseResponse(
         success=True,

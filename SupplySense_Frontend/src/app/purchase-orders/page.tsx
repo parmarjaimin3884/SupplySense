@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { usePurchaseOrderList, useApprovePurchaseOrder } from "@/hooks/usePurchaseOrders";
+import { useLowStock } from "@/hooks/useInventory";
 import { CreatePOModal, type InitialProductPayload } from "@/components/purchase-orders/create-po-modal";
 
 function PurchaseOrdersContent() {
@@ -29,9 +30,7 @@ function PurchaseOrdersContent() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPOItem, setSelectedPOItem] = useState<InitialProductPayload | null>(null);
-  const [approvedPoIds, setApprovedPoIds] = useState<string[]>([]);
-  const [createdPoSkus, setCreatedPoSkus] = useState<string[]>([]);
-  const [localOrders, setLocalOrders] = useState<any[]>([]);
+  const [authorizingIds, setAuthorizingIds] = useState<string[]>([]);
 
   // Check URL search parameters on mount
   useEffect(() => {
@@ -41,22 +40,8 @@ function PurchaseOrdersContent() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedSkus = localStorage.getItem("supplysense_created_pos_skus");
-        if (savedSkus) {
-          setCreatedPoSkus(JSON.parse(savedSkus));
-        }
-        const savedOrders = localStorage.getItem("supplysense_local_pos_list");
-        if (savedOrders) {
-          setLocalOrders(JSON.parse(savedOrders));
-        }
-      } catch {}
-    }
-  }, []);
-
-  const { data: poData, isLoading, refetch } = usePurchaseOrderList({ limit: 20 });
+  const { data: poData, isLoading, refetch } = usePurchaseOrderList({ limit: 100 });
+  const { data: lowStockItems } = useLowStock();
   const approveMutation = useApprovePurchaseOrder();
 
   const rawList = poData?.items || poData?.data || [];
@@ -75,12 +60,12 @@ function PurchaseOrdersContent() {
       expectedDelivery: p.expected_delivery_date && p.expected_delivery_date.includes("-")
         ? p.expected_delivery_date
         : new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
-      status: approvedPoIds.includes(p.id) ? "Approved" : (p.status || "Pending"),
+      status: p.status || "Pending",
       reason: "Manager Issued Purchase Order",
     };
   });
 
-  const dbOrders = [...localOrders, ...fetchedDbOrders];
+  const dbOrders = fetchedDbOrders;
 
   const filteredOrders = dbOrders.filter((o: any) => {
     const matchesSearch =
@@ -92,46 +77,15 @@ function PurchaseOrdersContent() {
   });
 
   const handleApprovePO = async (poId: string) => {
+    if (authorizingIds.includes(poId) || approveMutation.isPending) return;
+    setAuthorizingIds((currentIds) => [...currentIds, poId]);
     try {
       await approveMutation.mutateAsync(poId);
-    } catch {}
-
-    setApprovedPoIds((prev) => {
-      const updated = [...prev, poId];
-      if (typeof window !== "undefined") {
-        localStorage.setItem("supplysense_approved_po_ids", JSON.stringify(updated));
-      }
-      return updated;
-    });
-
-    const targetPO = dbOrders.find((o: any) => o.id === poId || o.poNumber === poId);
-    if (targetPO) {
-      const newShipment = {
-        id: `SHP-${targetPO.poNumber || targetPO.id}`,
-        purchase_order_id: targetPO.id,
-        po_number: targetPO.poNumber || targetPO.id,
-        product_name: targetPO.productName || "JBL AudiGen 8",
-        sku: targetPO.sku || "SKU-JBL-0092",
-        quantity: targetPO.quantity || 1671,
-        carrier: "BlueDart Express",
-        vehicle_number: "MH-04-SS-8842",
-        current_status: "IN_TRANSIT",
-        current_location: "Mumbai Western Hub Gate #3",
-        dispatch_date: new Date().toISOString().split("T")[0],
-        expected_arrival: new Date(Date.now() + 4 * 86400000).toISOString().split("T")[0],
-        delay_days: 0,
-        supplier_name: targetPO.supplier || "Samsung Electronics",
-        warehouse_name: targetPO.warehouse || "Mumbai Western Hub",
-      };
-
-      try {
-        const saved = localStorage.getItem("supplysense_local_shipments");
-        const list = saved ? JSON.parse(saved) : [];
-        if (!list.some((s: any) => s.po_number === newShipment.po_number || s.purchase_order_id === targetPO.id)) {
-          list.unshift(newShipment);
-          localStorage.setItem("supplysense_local_shipments", JSON.stringify(list));
-        }
-      } catch {}
+      refetch();
+    } catch {
+      return;
+    } finally {
+      setAuthorizingIds((currentIds) => currentIds.filter((id) => id !== poId));
     }
   };
 
@@ -159,105 +113,24 @@ function PurchaseOrdersContent() {
   };
 
   const handlePOSuccess = () => {
-    if (selectedPOItem) {
-      const sku = selectedPOItem.sku;
-      const itemId = selectedPOItem.id;
-      const newPOObj = {
-        id: `po-${Date.now()}`,
-        poNumber: `PO-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        productName: selectedPOItem.name,
-        sku: selectedPOItem.sku,
-        supplier: "Samsung Electronics",
-        warehouse: "Mumbai Western Hub",
-        quantity: selectedPOItem.quantity || 1671,
-        totalCost: (selectedPOItem.quantity || 1671) * (selectedPOItem.unit_price || 84555.33),
-        orderDate: new Date().toISOString().split("T")[0],
-        expectedDelivery: new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0],
-        status: "Pending",
-        reason: "Manager Issued Purchase Order",
-      };
-
-      setCreatedPoSkus((prev) => {
-        const updated = [...prev, sku, itemId];
-        if (typeof window !== "undefined") {
-          localStorage.setItem("supplysense_created_pos_skus", JSON.stringify(updated));
-        }
-        return updated;
-      });
-
-      setLocalOrders((prev) => {
-        const updated = [newPOObj, ...prev];
-        if (typeof window !== "undefined") {
-          localStorage.setItem("supplysense_local_pos_list", JSON.stringify(updated));
-        }
-        return updated;
-      });
-    }
     refetch();
   };
 
-  const allRecommendations = [
-    {
-      id: "ba320b57-bc02-478c-b6b4-85a7ddab61ee",
-      sku: "SKU-JBL-0092",
-      name: "JBL AudiGen 8",
-      onHand: 711,
-      available: 672,
-      reserved: 39,
-      damaged: 2,
-      location: "Mumbai",
-      warehouse_id: "wh-mum",
-      supplier_id: "sup-sam",
-      reorderQty: 1671,
-      unitCost: 84555.33,
-    },
-    {
-      id: "prod-boa-0337",
-      sku: "SKU-BOA-0337",
-      name: "Boat Television Gen 10",
-      onHand: 1824,
-      available: 1727,
-      reserved: 97,
-      damaged: 4,
-      location: "Delhi",
-      warehouse_id: "wh-del",
-      supplier_id: "sup-abc",
-      reorderQty: 1200,
-      unitCost: 32000.00,
-    },
-    {
-      id: "prod-can-0353-sur",
-      sku: "SKU-CAN-0353",
-      name: "Canon Smartphone Gen 2",
-      onHand: 2056,
-      available: 1972,
-      reserved: 84,
-      damaged: 12,
-      location: "Surat",
-      warehouse_id: "wh-sur",
-      supplier_id: "sup-alt-01",
-      reorderQty: 1500,
-      unitCost: 24500.00,
-    },
-    {
-      id: "prod-can-0353-ban",
-      sku: "SKU-CAN-0353",
-      name: "Canon Smartphone Gen 2",
-      onHand: 967,
-      available: 962,
-      reserved: 5,
-      damaged: 5,
-      location: "Bangalore",
-      warehouse_id: "wh-ban",
-      supplier_id: "sup-alt-01",
-      reorderQty: 800,
-      unitCost: 24500.00,
-    },
-  ];
-
-  const aiRecommendations = allRecommendations.filter(
-    (rec) => !createdPoSkus.includes(rec.sku) && !createdPoSkus.includes(rec.id)
-  );
+  const allRecommendations = (lowStockItems || []).map((item: any) => ({
+      id: item.id,
+      sku: item.sku,
+      name: item.name || item.product_name,
+      on_hand: item.quantity_on_hand,
+      available_quantity: item.available_quantity,
+      reserved_quantity: item.reserved_quantity,
+      damaged_quantity: item.damaged_quantity,
+      location: item.warehouse_name,
+      warehouse_id: item.warehouse_id,
+      supplier_id: item.supplier_id,
+      quantity: item.reorder_level,
+      unit_price: Number(item.cost_price || item.unit_cost),
+    }));
+  const aiRecommendations = allRecommendations;
 
   return (
     <AppShell>
@@ -344,19 +217,19 @@ function PurchaseOrdersContent() {
                 <div className="grid grid-cols-4 gap-2 text-[11px] bg-[#FAFAFA] p-2.5 rounded-lg border border-[#F1F5F9]">
                   <div>
                     <span className="text-[#6B7280] block text-[10px]">On Hand:</span>
-                    <strong className="text-[#111827] font-mono">{rec.onHand} Units</strong>
+                    <strong className="text-[#111827] font-mono">{rec.on_hand} Units</strong>
                   </div>
                   <div>
                     <span className="text-[#6B7280] block text-[10px]">Available:</span>
-                    <strong className="text-[#111827] font-mono">{rec.available} Units</strong>
+                    <strong className="text-[#111827] font-mono">{rec.available_quantity} Units</strong>
                   </div>
                   <div>
                     <span className="text-[#6B7280] block text-[10px]">Reserved:</span>
-                    <strong className="text-[#111827] font-mono">{rec.reserved} Units</strong>
+                    <strong className="text-[#111827] font-mono">{rec.reserved_quantity} Units</strong>
                   </div>
                   <div>
                     <span className="text-[#6B7280] block text-[10px]">Damaged:</span>
-                    <strong className="text-[#111827] font-mono">{rec.damaged} Units</strong>
+                    <strong className="text-[#111827] font-mono">{rec.damaged_quantity} Units</strong>
                   </div>
                 </div>
 
@@ -381,8 +254,8 @@ function PurchaseOrdersContent() {
                       name: rec.name,
                       supplier_id: rec.supplier_id,
                       warehouse_id: rec.warehouse_id,
-                      quantity: rec.reorderQty,
-                      unit_price: rec.unitCost,
+                      quantity: rec.quantity,
+                      unit_price: rec.unit_price,
                     })}
                     className="h-8 px-3 rounded-lg bg-[#111827] text-white text-xs font-semibold hover:bg-black transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                   >
@@ -480,7 +353,9 @@ function PurchaseOrdersContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F3F4F6] text-[#111827]">
-                {filteredOrders.map((po) => (
+                {filteredOrders.map((po) => {
+                  const isAuthorizing = authorizingIds.includes(po.id);
+                  return (
                   <tr key={po.id} className="hover:bg-[#F9FAFB] transition-colors">
                     <td className="py-3.5 px-4 font-mono font-bold text-[#2563EB]">
                       {po.poNumber}
@@ -526,14 +401,16 @@ function PurchaseOrdersContent() {
                         <button
                           type="button"
                           onClick={() => handleApprovePO(po.id)}
+                          disabled={isAuthorizing || approveMutation.isPending}
                           className="h-7 px-2.5 rounded-lg bg-[#111827] text-white text-[11px] font-semibold hover:bg-black transition-all shadow-xs cursor-pointer"
                         >
-                          Approve PO
+                          {isAuthorizing ? "Approving..." : "Approve PO"}
                         </button>
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

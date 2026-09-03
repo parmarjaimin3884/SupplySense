@@ -21,4 +21,14 @@ export const dashboardApi = {
     const response = await apiClient.get<BaseResponse<Alert[]>>("/dashboard/alerts");
     return response.data.data;
   },
+
+  resolveAllAlerts: async (): Promise<boolean> => {
+    const response = await apiClient.patch<BaseResponse<boolean>>("/dashboard/alerts/resolve-all");
+    return response.data.data;
+  },
+
+  deleteAlert: async (alertId: string): Promise<boolean> => {
+    const response = await apiClient.delete<BaseResponse<boolean>>(`/dashboard/alerts/${alertId}`);
+    return response.data.data;
+  },
 };

@@ -26,6 +26,18 @@ class InventoryItemResponse(BaseModel):
     stock_status: str = Field(default="OPTIMAL", description="CRITICAL, LOW_STOCK, OPTIMAL, OVERSTOCK.")
     total_value: Optional[Decimal] = Field(default=None, description="Stock value.")
     last_updated: Optional[date] = Field(default=None, description="Last stock update date.")
+    unit_cost: Optional[Decimal] = Field(default=None, description="Product unit cost.")
+    reorder_level: Optional[int] = Field(default=None, description="Product reorder threshold.")
+    supplier_id: Optional[str] = Field(default=None, description="Primary supplier ID.")
+    lead_time: Optional[int] = Field(default=None, description="Supplier lead time in days.")
+    supplier_name: Optional[str] = Field(default=None, description="Primary supplier name.")
+    average_delay: Optional[Decimal] = Field(default=None, description="Supplier average delivery delay in days.")
+
+
+class ReorderDecisionInput(BaseModel):
+    product_id: str = Field(..., description="Product ID.")
+    warehouse_id: str = Field(..., description="Warehouse ID.")
+    decision: str = Field(..., pattern="^Rejected$")
 
 
 class InventoryDetailResponse(InventoryItemResponse):

@@ -10,10 +10,10 @@ from decimal import Decimal
 from datetime import date
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, exists, and_
 
-from models import Inventory, Product, Warehouse, Category
-from backend.app.schemas.inventory import InventoryItemResponse, InventoryDetailResponse, InventoryMovementResponse
+from models import Inventory, Product, Warehouse, Category, Supplier, PurchaseOrder, PurchaseOrderItem, ReorderDecision
+from backend.app.schemas.inventory import InventoryItemResponse, InventoryDetailResponse, InventoryMovementResponse, ReorderDecisionInput
 from backend.app.schemas.common import PaginationResponse, BaseResponse, PaginationMeta
 from backend.app.api.deps import get_db
 
@@ -176,11 +176,34 @@ async def get_low_stock(
     db: AsyncSession = Depends(get_db)
 ) -> BaseResponse[List[InventoryItemResponse]]:
     """Returns low stock inventory items."""
+    active_po_exists = exists(
+        select(PurchaseOrderItem.id)
+        .join(PurchaseOrder, PurchaseOrderItem.purchase_order_id == PurchaseOrder.id)
+        .where(
+            and_(
+                PurchaseOrderItem.product_id == Inventory.product_id,
+                PurchaseOrder.warehouse_id == Inventory.warehouse_id,
+                PurchaseOrder.status.in_(["Draft", "Pending", "Pending Approval", "Approved", "In Transit"]),
+            )
+        )
+    )
+    rejected_exists = exists(
+        select(ReorderDecision.id).where(
+            and_(
+                ReorderDecision.product_id == Inventory.product_id,
+                ReorderDecision.warehouse_id == Inventory.warehouse_id,
+                ReorderDecision.decision == "Rejected",
+            )
+        )
+    )
     stmt = (
-        select(Inventory, Product, Warehouse)
+        select(Inventory, Product, Warehouse, Supplier)
         .join(Product, Inventory.product_id == Product.id)
         .join(Warehouse, Inventory.warehouse_id == Warehouse.id)
+        .join(Supplier, Product.supplier_id == Supplier.id)
         .where(Inventory.available_quantity <= Product.reorder_level)
+        .where(~active_po_exists)
+        .where(~rejected_exists)
     )
     if warehouse_id and warehouse_id.upper() != "ALL":
         stmt = stmt.where(or_(Inventory.warehouse_id == warehouse_id, Warehouse.warehouse_code.ilike(warehouse_id)))
@@ -188,7 +211,7 @@ async def get_low_stock(
     results = (await db.execute(stmt)).all()
 
     items = []
-    for inv, prod, wh in results:
+    for inv, prod, wh, supplier in results:
         items.append(
             InventoryItemResponse(
                 id=inv.id,
@@ -204,9 +227,46 @@ async def get_low_stock(
                 stock_status="LOW_STOCK",
                 total_value=Decimal(str(inv.available_quantity)) * prod.cost_price,
                 last_updated=inv.last_updated,
+                unit_cost=prod.cost_price,
+                reorder_level=prod.reorder_level,
+                supplier_id=prod.supplier_id,
+                lead_time=supplier.lead_time,
+                supplier_name=supplier.company_name,
+                average_delay=supplier.average_delay,
             )
         )
     return BaseResponse(success=True, message="Low stock items retrieved.", data=items)
+
+
+@router.post(
+    "/reorder-decisions",
+    response_model=BaseResponse[dict],
+    status_code=status.HTTP_200_OK,
+    summary="Record Reorder Decision",
+)
+async def record_reorder_decision(
+    payload: ReorderDecisionInput,
+    db: AsyncSession = Depends(get_db),
+) -> BaseResponse[dict]:
+    """Persists a user's decision for a product and warehouse reorder recommendation."""
+    existing = await db.execute(
+        select(ReorderDecision).where(
+            ReorderDecision.product_id == payload.product_id,
+            ReorderDecision.warehouse_id == payload.warehouse_id,
+        )
+    )
+    decision = existing.scalar_one_or_none()
+    if decision:
+        decision.decision = payload.decision
+    else:
+        decision = ReorderDecision(
+            product_id=payload.product_id,
+            warehouse_id=payload.warehouse_id,
+            decision=payload.decision,
+        )
+        db.add(decision)
+    await db.commit()
+    return BaseResponse(success=True, message="Reorder decision saved.", data={"id": decision.id, "decision": decision.decision})
 
 
 @router.get(

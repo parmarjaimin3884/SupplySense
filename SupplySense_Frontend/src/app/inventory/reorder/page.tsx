@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Boxes,
@@ -13,101 +13,88 @@ import {
   AlertTriangle,
   Zap,
   Check,
-  RotateCcw,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { useLowStock } from "@/hooks/useInventory";
-
-const STORAGE_KEY = "supplysense_reorder_statuses_v1";
+import { useLowStock, useRecordReorderDecision } from "@/hooks/useInventory";
+import { useCreatePurchaseOrder, usePurchaseOrderList } from "@/hooks/usePurchaseOrders";
 
 export default function ReorderPage() {
   const { data: lowStockItems, isLoading } = useLowStock();
-  const [reorders, setReorders] = useState<any[]>([]);
+  const { data: poData, refetch: refetchPurchaseOrders } = usePurchaseOrderList({ limit: 100 });
+  const createPOMutation = useCreatePurchaseOrder();
+  const rejectMutation = useRecordReorderDecision();
+  const [resolvedIds, setResolvedIds] = useState<string[]>([]);
+  const [authorizingIds, setAuthorizingIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (lowStockItems) {
-      const formatted = (lowStockItems || []).map((s: any) => ({
-        id: s.id,
-        sku: s.sku,
-        name: s.name || s.product_name,
-        category: s.category_name || "Electronics",
-        currentStock: s.available_quantity ?? s.quantity_on_hand ?? 0,
-        reorderQuantity: s.reorder_level ?? 50,
-        supplier: s.supplier_name || "Tier-1 Vendor",
-        leadTimeDays: s.lead_time || 14,
-        unitCost: Number(s.cost_price || s.unit_cost || 100),
-        status: "pending" as "pending" | "approved" | "rejected",
-      }));
-      setReorders(formatted);
-    }
-  }, [lowStockItems]);
-
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Load saved authorization statuses from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: Record<string, "pending" | "approved" | "rejected"> = JSON.parse(saved);
-        setReorders((prev) =>
-          prev.map((item) => ({
-            ...item,
-            status: parsed[item.id] || item.status,
-          }))
-        );
-      }
-    } catch (e) {
-      console.error("Failed to load saved reorders:", e);
-    } finally {
-      setIsLoaded(true);
-    }
-  }, [lowStockItems]);
-
-
-  // Save changes to localStorage whenever reorders change
-  const persistState = (newReorders: typeof reorders) => {
-    setReorders(newReorders);
-    try {
-      const statusMap = newReorders.reduce((acc, item) => {
-        acc[item.id] = item.status;
-        return acc;
-      }, {} as Record<string, string>);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(statusMap));
-    } catch (e) {
-      console.error("Failed to save reorders to localStorage:", e);
-    }
-  };
-
-  const handleApprove = (id: string) => {
-    const updated = reorders.map((r) => (r.id === id ? { ...r, status: "approved" as const } : r));
-    persistState(updated);
-  };
-
-  const handleReject = (id: string) => {
-    const updated = reorders.map((r) => (r.id === id ? { ...r, status: "rejected" as const } : r));
-    persistState(updated);
-  };
-
-  const handleBatchApprove = () => {
-    const updated = reorders.map((r) => ({ ...r, status: "approved" as const }));
-    persistState(updated);
-  };
-
-  const handleResetQueue = () => {
-    const reset = (lowStockItems || []).map((s: any) => ({
+  const purchaseOrders = poData?.items || poData?.data || [];
+  const reorders = (lowStockItems || [])
+    .filter((s: any) => !resolvedIds.includes(s.id))
+    .map((s: any) => {
+    const hasOpenPO = purchaseOrders.some((po: any) =>
+      ["DRAFT", "PENDING", "PENDING APPROVAL", "APPROVED", "IN TRANSIT"].includes(String(po.status).toUpperCase()) &&
+      po.items?.some((item: any) => item.product_id === s.product_id)
+    );
+    return {
       id: s.id,
       sku: s.sku,
-      name: s.name || s.product_name,
-      category: s.category_name || "Electronics",
+      productId: s.product_id,
+      name: s.product_name,
+      category: s.category_name,
       currentStock: s.available_quantity ?? s.quantity_on_hand ?? 0,
-      reorderQuantity: s.reorder_level ?? 50,
-      supplier: s.supplier_name || "Tier-1 Vendor",
-      leadTimeDays: s.lead_time || 14,
-      unitCost: Number(s.cost_price || s.unit_cost || 100),
-      status: "pending" as const,
-    }));
-    persistState(reset);
+      reorderLevel: s.reorder_level ?? 0,
+      reorderQuantity: Math.max((s.reorder_level ?? 0) - (s.available_quantity ?? 0), 1),
+      supplierId: s.supplier_id,
+      supplier: s.supplier_name,
+      leadTimeDays: s.lead_time ?? 0,
+      averageDelayDays: Number(s.average_delay ?? 0),
+      unitCost: Number(s.unit_cost ?? 0),
+      onHand: s.quantity_on_hand,
+      location: s.warehouse_name,
+      status: hasOpenPO ? "approved" : "pending",
+      warehouseId: s.warehouse_id,
+    };
+    });
+
+  const createPurchaseOrder = async (item: any) => {
+    if (authorizingIds.includes(item.id) || createPOMutation.isPending) return;
+    setAuthorizingIds((currentIds) => [...currentIds, item.id]);
+    const expectedDays = item.leadTimeDays + item.averageDelayDays;
+    const expectedDelivery = expectedDays > 0
+      ? new Date(Date.now() + expectedDays * 86400000).toISOString().split("T")[0]
+      : undefined;
+
+    try {
+      await createPOMutation.mutateAsync({
+        supplier_id: item.supplierId,
+        warehouse_id: item.warehouseId,
+        expected_delivery_date: expectedDelivery,
+        priority: item.status === "pending" && item.currentStock <= item.reorderLevel / 2 ? "Urgent" : "High",
+        items: [{ product_id: item.productId, quantity: item.reorderQuantity, unit_price: item.unitCost }],
+      });
+      setResolvedIds((currentIds) => currentIds.includes(item.id) ? currentIds : [...currentIds, item.id]);
+      await refetchPurchaseOrders();
+    } finally {
+      setAuthorizingIds((currentIds) => currentIds.filter((id) => id !== item.id));
+    }
+  };
+
+  const handleApprove = async (id: string) => {
+    const item = reorders.find((reorder) => reorder.id === id);
+    if (item) await createPurchaseOrder(item);
+  };
+
+  const handleReject = async (id: string) => {
+    const item = reorders.find((reorder) => reorder.id === id);
+    if (!item) return;
+    await rejectMutation.mutateAsync({ product_id: item.productId, warehouse_id: item.warehouseId, decision: "Rejected" });
+    setResolvedIds((currentIds) => currentIds.includes(item.id) ? currentIds : [...currentIds, item.id]);
+    await refetchPurchaseOrders();
+  };
+
+  const handleBatchApprove = async () => {
+    for (const item of reorders.filter((reorder) => reorder.status === "pending")) {
+      await createPurchaseOrder(item);
+    }
   };
 
   const pendingItems = reorders.filter((r) => r.status === "pending");
@@ -138,18 +125,6 @@ export default function ReorderPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {approvedItems.length > 0 && (
-              <button
-                type="button"
-                onClick={handleResetQueue}
-                className="h-9 px-3 rounded-xl border border-[#E5E7EB] bg-white text-[#6B7280] hover:text-[#111827] text-xs font-semibold hover:bg-[#F9FAFB] transition-all flex items-center gap-1.5 cursor-pointer"
-                title="Reset queue for demo testing"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>Reset Queue</span>
-              </button>
-            )}
-
             {pendingItems.length > 0 && (
               <button
                 type="button"
@@ -211,18 +186,15 @@ export default function ReorderPage() {
                     <span className="font-bold text-base text-[#111827]">
                       {item.name}
                     </span>
-                    <span className="text-[10px] font-mono font-bold bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20 px-2 py-0.5 rounded">
-                      Confidence {item.confidenceScore}%
-                    </span>
                   </div>
 
                   <p className="text-xs text-[#4B5563]">
                     Assigned Supplier: <strong className="text-[#111827]">{item.supplier}</strong> ({item.leadTimeDays}d lead-time) · Destination: <strong className="text-[#111827]">{item.location}</strong>
+                    <br />Expected delivery: <strong className="text-[#111827]">{item.leadTimeDays + item.averageDelayDays > 0 ? new Date(Date.now() + (item.leadTimeDays + item.averageDelayDays) * 86400000).toLocaleDateString() : "Not available"}</strong> ({item.averageDelayDays}d average supplier delay)
                   </p>
 
                   <div className="flex flex-wrap items-center gap-4 text-xs text-[#6B7280] pt-1">
-                    <span>Current On Hand: <strong className="font-mono text-[#111827]">{item.onHand.toLocaleString()}</strong> ({item.daysOfSupply}d supply)</span>
-                    <span>Monthly Run Rate: <strong className="font-mono text-[#111827]">{item.predictedDemandMonthly.toLocaleString()}</strong></span>
+                    <span>Current On Hand: <strong className="font-mono text-[#111827]">{item.onHand.toLocaleString()}</strong></span>
                     <span>PO Estimated Value: <strong className="font-mono text-[#111827]">₹{(item.reorderQuantity * item.unitCost).toLocaleString('en-IN')}</strong></span>
                   </div>
                 </div>
@@ -258,10 +230,11 @@ export default function ReorderPage() {
                       <button
                         type="button"
                         onClick={() => handleApprove(item.id)}
+                        disabled={authorizingIds.includes(item.id) || createPOMutation.isPending}
                         className="h-10 px-4 rounded-xl bg-[#2563EB] text-white text-xs font-semibold shadow-xs hover:bg-[#1D4ED8] active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
                       >
                         <Zap className="h-3.5 w-3.5" />
-                        <span>Authorize PO</span>
+                        <span>{authorizingIds.includes(item.id) ? "Authorizing..." : "Authorize PO"}</span>
                       </button>
                     </div>
                   )}

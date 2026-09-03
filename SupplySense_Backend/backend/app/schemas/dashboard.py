@@ -39,3 +39,14 @@ class AlertResponse(BaseModel):
     severity: str = Field(..., description="CRITICAL, HIGH, MEDIUM, LOW.")
     created_at: str = Field(..., description="ISO creation date.")
     is_resolved: bool = Field(default=False, description="Resolution status.")
+    title: Optional[str] = None
+    category: Optional[str] = None
+    product_name: Optional[str] = None
+    affected_sku: Optional[str] = None
+    warehouse_name: Optional[str] = None
+    current_stock: Optional[int] = None
+    reorder_level: Optional[int] = None
+    supplier_name: Optional[str] = None
+    delay_days: Optional[int] = None
+    recommended_action: Optional[str] = None
+    ai_insight: Optional[str] = None

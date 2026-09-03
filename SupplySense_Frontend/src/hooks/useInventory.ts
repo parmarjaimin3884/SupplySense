@@ -2,7 +2,7 @@
  * SupplySense — Inventory React Query Hooks
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/react-query/keys";
 import { inventoryApi } from "@/lib/api/inventory";
 import type { InventoryListParams } from "@/types/inventory";
@@ -27,6 +27,18 @@ export function useLowStock() {
     queryKey: queryKeys.inventory.lowStock,
     queryFn: inventoryApi.getLowStock,
     refetchInterval: 5000,
+  });
+}
+
+export function useRecordReorderDecision() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: inventoryApi.recordReorderDecision,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory.lowStock });
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
   });
 }
 

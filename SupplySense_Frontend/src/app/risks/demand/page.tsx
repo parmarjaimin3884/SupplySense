@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -22,16 +22,6 @@ export default function DemandRiskPage() {
   const { data: anomalies, isLoading, refetch } = useDemandAnomalies();
   const adjustMutation = useAdjustSafetyBuffer();
 
-  // Restore adjusted state from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("supplysense_adjusted_buffers");
-      if (saved) {
-        setAdjustedIds(JSON.parse(saved));
-      }
-    } catch {}
-  }, []);
-
   const handleAdjustBuffer = async (product_id: string, warehouse_id: string, units: number) => {
     const key = `${product_id}-${warehouse_id}`;
     try {
@@ -41,17 +31,9 @@ export default function DemandRiskPage() {
         additional_buffer_units: units,
         reason: `Expanded safety stock buffer by +${units} units to prevent stockout during sales surge.`,
       });
-      const updated = [...adjustedIds, key];
-      setAdjustedIds(updated);
-      try {
-        localStorage.setItem("supplysense_adjusted_buffers", JSON.stringify(updated));
-      } catch {}
+      setAdjustedIds((prev) => (prev.includes(key) ? prev : [...prev, key]));
     } catch {
-      const updated = [...adjustedIds, key];
-      setAdjustedIds(updated);
-      try {
-        localStorage.setItem("supplysense_adjusted_buffers", JSON.stringify(updated));
-      } catch {}
+      // Keep the recommendation actionable when the server rejects the change.
     }
   };
 
