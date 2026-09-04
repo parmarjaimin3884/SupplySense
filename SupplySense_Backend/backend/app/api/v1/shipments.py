@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, update, delete
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
 
 from models import Shipment, GoodsReceived, PurchaseOrder, PurchaseOrderItem, Inventory, Product, Warehouse, Supplier, StockTransfer, InventoryMovement
@@ -18,7 +18,7 @@ from backend.app.schemas.shipment import (
     ShipmentStatusUpdatePayload,
     GRNReceivingPayload,
 )
-from backend.app.schemas.common import BaseResponse, PaginationMeta
+from backend.app.schemas.common import BaseResponse, PaginationResponse, PaginationMeta
 from backend.app.api.deps import get_db
 from backend.app.core.redis import get_cache, set_cache, delete_cache_pattern
 
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/shipments", tags=["Shipments & Logistics Control Tow
 
 @router.get(
     "",
-    response_model=BaseResponse[List[ShipmentResponse]],
+    response_model=PaginationResponse[ShipmentResponse],
     status_code=status.HTTP_200_OK,
     summary="List Active & Historical Shipments",
     description="Returns live transit telemetry across BlueDart, VRL, Gati carriers with delay metrics.",
@@ -37,11 +37,11 @@ async def list_shipments(
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-) -> BaseResponse[List[ShipmentResponse]]:
+) -> PaginationResponse[ShipmentResponse]:
     cache_key = f"supplysense:shipments:list:{status_filter}:{page}:{limit}"
     cached = await get_cache(cache_key)
     if cached:
-        return BaseResponse(
+        return PaginationResponse(
             success=True,
             message="Retrieved shipments from Redis cache (0ms).",
             data=[ShipmentResponse(**item) for item in cached["items"]],
@@ -153,7 +153,7 @@ async def list_shipments(
     meta = PaginationMeta(page=page, limit=limit, total_items=len(items), total_pages=1)
     await set_cache(cache_key, {"items": [i.model_dump(mode="json") for i in items], "meta": meta.model_dump(mode="json")}, ttl_seconds=60)
 
-    return BaseResponse(success=True, message="Live shipments telemetry retrieved.", data=items, meta=meta)
+    return PaginationResponse(success=True, message="Live shipments telemetry retrieved.", data=items, meta=meta)
 
 
 @router.post(
@@ -333,8 +333,8 @@ async def update_shipment_status(shipment_id: str, payload: ShipmentStatusUpdate
         if payload.status.upper() in ["COMPLETED", "RECEIVED"]:
             from_inv = (await db.execute(select(Inventory).where(Inventory.warehouse_id == trf.from_warehouse_id, Inventory.product_id == trf.product_id))).scalars().first()
             if from_inv:
-                from_inv.reserved_quantity -= trf.quantity
-                from_inv.quantity_on_hand -= trf.quantity
+                from_inv.reserved_quantity = max(0, (from_inv.reserved_quantity or 0) - trf.quantity)
+                from_inv.quantity_on_hand = max(0, (from_inv.quantity_on_hand or 0) - trf.quantity)
                 db.add(from_inv)
             to_inv = (await db.execute(select(Inventory).where(Inventory.warehouse_id == trf.to_warehouse_id, Inventory.product_id == trf.product_id))).scalars().first()
             if to_inv:

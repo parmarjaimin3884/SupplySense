@@ -12,14 +12,13 @@ from typing import Optional, Any
 logger = logging.getLogger("supplysense.redis")
 logging.basicConfig(level=logging.INFO)
 
-aioredis = None
 try:
-    import redis.asyncio as aioredis
+    import redis.asyncio as aioredis  # type: ignore
 except Exception:
     try:
         import aioredis  # type: ignore
     except Exception:
-        aioredis = None
+        aioredis = None  # type: ignore
 
 _redis_client: Optional[Any] = None
 
