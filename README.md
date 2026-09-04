@@ -110,7 +110,7 @@ Built for enterprise retailers and distributors, SupplySense sits as an **AI neu
 | **Backend** | **FastAPI**, **Python 3.11+**, **Pydantic v2**, **SQLAlchemy 2.0** (Asyncio / Asyncpg), **Uvicorn**, **Loguru** |
 | **AI & Multi-Agent** | **LangGraph**, **LangChain**, **Groq** (`llama-3.3-70b-versatile`), **OpenAI** (`gpt-4o`), **Qdrant Vector DB**, **HuggingFace Embeddings** (`all-MiniLM-L6-v2`) |
 | **Databases & Cache** | **PostgreSQL** (Neon Serverless PostgreSQL), **Redis** |
-| **DevOps & Infrastructure** | **Docker**, **Docker Compose**, **AWS EC2**, **Bash / Batch Automation Scripts** |
+| **DevOps & Containerization** | **Docker**, **Docker Compose**, **Batch Scripts** |
 
 ---
 
@@ -146,8 +146,7 @@ SupplySense/
 │
 ├── docker-compose.yml            # Multi-container orchestration (Frontend + Backend)
 ├── run-docker-local.bat          # 1-Click Local Docker launcher for Windows
-├── deploy-ec2.sh                 # 1-Click AWS EC2 deployment script (with Swap Memory)
-├── deploy-to-ec2.bat             # Remote update & deploy script via SSH/SCP
+├── start-backend.bat             # Local backend launcher script
 └── README.md                     # Project Documentation
 ```
 
@@ -283,22 +282,8 @@ Interactive documentation is available at `/docs` (Swagger UI) and `/redoc` (ReD
 
 ---
 
-## ☁️ Deployment on AWS EC2
-
-SupplySense is pre-configured for cost-effective deployment on AWS EC2 (including Free Tier `t2.micro` instances):
-
-1. Launch an Ubuntu 22.04 / 24.04 LTS EC2 instance.
-2. Ensure inbound Security Group ports are open: `22` (SSH), `80` / `3000` (Frontend), and `8000` (Backend API).
-3. Run the automated deployment script on the instance:
-   ```bash
-   chmod +x deploy-ec2.sh
-   ./deploy-ec2.sh
-   ```
-   *The script automatically allocates a 2GB swap partition to prevent out-of-memory crashes on t2.micro instances, installs Docker, detects your public IP, and builds the containers.*
-
----
-
 ## 🤝 Contributing
+
 
 Contributions are welcome! To contribute:
 1. Fork the Project
