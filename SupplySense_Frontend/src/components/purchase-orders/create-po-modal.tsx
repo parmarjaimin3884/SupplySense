@@ -94,13 +94,13 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
   }, [initialProduct]);
 
   useEffect(() => {
-    if (!supplierId || initialProduct) return;
+    if (!supplierId) return;
     const supplier = suppliers.find((candidate: any) => candidate.id === supplierId);
     const deliveryDays = Number(supplier?.lead_time || 0) + Number(supplier?.average_delay || 0);
     if (deliveryDays > 0) {
       setDeliveryDate(new Date(Date.now() + deliveryDays * 86400000).toISOString().split("T")[0]);
     }
-  }, [supplierId, suppliers, initialProduct]);
+  }, [supplierId, suppliers]);
 
   const handleClose = () => {
     setInternalOpen(false);
@@ -333,9 +333,9 @@ export function CreatePOModal({ isOpen, onClose, onSuccess, initialProduct }: Cr
                       >
                         <option value="">Select product</option>
                         {products.map((product: any, productIndex: number) => {
-                          const uniqueProductId = `${product.product_id || product.product_name || "product"}-${product.sku || productIndex}-${productIndex}`;
+                          const uniqueKey = `${product.product_id || product.product_name || "product"}-${product.sku || productIndex}-${productIndex}`;
                           return (
-                            <option key={String(uniqueProductId)} value={String(uniqueProductId)}>
+                            <option key={uniqueKey} value={String(product.product_id)}>
                               {product.product_name || product.name || "Unnamed product"} ({product.sku || product.product_id || "SKU"})
                             </option>
                           );

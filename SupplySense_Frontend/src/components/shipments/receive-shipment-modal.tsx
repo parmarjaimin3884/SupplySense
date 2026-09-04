@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { X, CheckCircle2, AlertTriangle, ShieldCheck, Truck, Package, Building2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, CheckCircle2, ShieldCheck, AlertCircle } from "lucide-react";
 import { useReceiveShipment } from "@/hooks/useShipments";
 import { ShipmentItem } from "@/lib/api/shipments";
 
@@ -15,17 +15,26 @@ interface ReceiveShipmentModalProps {
 export function ReceiveShipmentModal({ isOpen, onClose, shipment, onSuccess }: ReceiveShipmentModalProps) {
   const receiveMutation = useReceiveShipment();
 
-  const [acceptedQty, setAcceptedQty] = useState(shipment?.quantity || 100);
+  const [acceptedQty, setAcceptedQty] = useState(shipment?.quantity || 0);
   const [rejectedQty, setRejectedQty] = useState(0);
   const [inspectionResult, setInspectionResult] = useState<"PASSED" | "PASSED_WITH_DEFECTS" | "FAILED">("PASSED");
   const [qualityIssue, setQualityIssue] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!shipment) return;
+    setAcceptedQty(shipment.quantity);
+    setRejectedQty(0);
+    setInspectionResult("PASSED");
+    setQualityIssue("");
+    setErrorMessage(null);
+  }, [shipment?.id, shipment?.quantity]);
 
   if (!isOpen || !shipment) return null;
 
-  const totalInspected = acceptedQty + rejectedQty;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
     try {
       await receiveMutation.mutateAsync({
         id: shipment.id,
@@ -36,29 +45,15 @@ export function ReceiveShipmentModal({ isOpen, onClose, shipment, onSuccess }: R
           quality_issue: qualityIssue || undefined,
         },
       });
-    } catch {}
-
-    // Save completed shipment ID, PO number, and Purchase Order ID to localStorage
-    try {
-      const saved = localStorage.getItem("supplysense_completed_shipments");
-      const list: string[] = saved ? JSON.parse(saved) : [];
-      if (!list.includes(shipment.id)) list.push(shipment.id);
-      if (shipment.po_number && !list.includes(shipment.po_number)) list.push(shipment.po_number);
-      if (shipment.purchase_order_id && !list.includes(shipment.purchase_order_id)) list.push(shipment.purchase_order_id);
-      localStorage.setItem("supplysense_completed_shipments", JSON.stringify(list));
-    } catch {}
-
-    // Credit accepted quantity directly to Inventory stock map in localStorage
-    try {
-      const savedStock = localStorage.getItem("supplysense_inventory_stock_credits");
-      const stockMap: Record<string, number> = savedStock ? JSON.parse(savedStock) : {};
-      const targetSku = shipment.sku || "SKU-CAN-0353";
-      stockMap[targetSku] = (stockMap[targetSku] || 0) + acceptedQty;
-      localStorage.setItem("supplysense_inventory_stock_credits", JSON.stringify(stockMap));
-    } catch {}
-
-    if (onSuccess) onSuccess();
-    onClose();
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Shipment could not be received. It may have already been processed.";
+      setErrorMessage(msg);
+    }
   };
 
   return (
@@ -109,6 +104,17 @@ export function ReceiveShipmentModal({ isOpen, onClose, shipment, onSuccess }: R
             </div>
           </div>
 
+          {/* Feedback Error Alert */}
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-[#FEF2F2] border border-[#DC2626]/20 flex items-start gap-2.5 text-xs text-[#DC2626]">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="font-semibold block">Cannot Receive Shipment</span>
+                <span>{errorMessage}</span>
+              </div>
+            </div>
+          )}
+
           {/* Inspection Quantities */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="space-y-1.5">
@@ -116,6 +122,7 @@ export function ReceiveShipmentModal({ isOpen, onClose, shipment, onSuccess }: R
               <input
                 type="number"
                 min="0"
+                max={shipment.quantity}
                 value={acceptedQty}
                 onChange={(e) => setAcceptedQty(Number(e.target.value))}
                 className="w-full h-9 px-3 text-xs font-mono font-bold bg-white border border-[#16A34A]/40 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#16A34A] text-[#16A34A]"
@@ -166,7 +173,7 @@ export function ReceiveShipmentModal({ isOpen, onClose, shipment, onSuccess }: R
           <div className="p-3 rounded-xl bg-[#F0FDF4] border border-[#16A34A]/20 flex items-center justify-between text-xs">
             <span className="text-[#15803D] font-bold">Total Net Stock Credited:</span>
             <span className="text-sm font-mono font-bold text-[#15803D]">
-              +{acceptedQty.toLocaleString()} Units $\rightarrow$ {shipment.warehouse_name}
+              +{acceptedQty.toLocaleString()} Units → {shipment.warehouse_name}
             </span>
           </div>
 

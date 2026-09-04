@@ -131,7 +131,7 @@ export function NotificationDetailModal() {
                 <strong className="text-[#111827] font-mono text-xs">{item.affectedSKU}</strong>
                 {item.currentStock !== undefined && (
                   <span className="block text-[10px] text-[#6B7280] mt-0.5">
-                    Current Stock: <strong className="text-[#111827]">{item.currentStock} ea</strong>
+                    Current Stock: <strong className="text-[#111827]">{item.currentStock} Units</strong>
                   </span>
                 )}
               </div>

@@ -389,9 +389,9 @@ export default function PrimaryIntelligenceDashboard() {
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-[11px] text-[#4B5563] pt-1">
-                    <div>On Hand: <strong className="text-[#111827]">{sku.quantity_on_hand} ea</strong></div>
-                    <div>Available: <strong className="text-[#111827]">{sku.available_quantity} ea</strong></div>
-                    <div>Reserved: <strong className="text-[#111827]">{sku.reserved_quantity} ea</strong></div>
+                    <div>On Hand: <strong className="text-[#111827]">{sku.quantity_on_hand} Units</strong></div>
+                    <div>Available: <strong className="text-[#111827]">{sku.available_quantity} Units</strong></div>
+                    <div>Reserved: <strong className="text-[#111827]">{sku.reserved_quantity} Units</strong></div>
                   </div>
                   <div className="pt-2 border-t border-[#E5E7EB] flex items-center justify-between text-xs">
                     <span className="text-[#6B7280]">

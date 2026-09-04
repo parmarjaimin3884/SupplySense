@@ -37,3 +37,4 @@
 **/.qdrant/
 **/logs/
 **/*.log
+*.tar.gz

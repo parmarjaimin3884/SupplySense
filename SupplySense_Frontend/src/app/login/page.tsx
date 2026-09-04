@@ -10,10 +10,18 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { ApiError } from "@/types/common";
 import { Logo } from "@/components/ui/logo";
 
+function getLoginRedirect(): string {
+  if (typeof window === "undefined") return "/dashboard";
+
+  const redirect = new URLSearchParams(window.location.search).get("redirect");
+  return redirect?.startsWith("/") && !redirect.startsWith("//")
+    ? redirect
+    : "/dashboard";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
-  const isAuthLoading = useAuthStore((state) => state.isLoading);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,10 +29,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    router.prefetch("/dashboard");
-  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +45,7 @@ export default function LoginPage() {
     try {
       // Send email value as username (backend expects LoginRequest.username)
       await login(email, password);
-      router.push("/dashboard");
+      window.location.href = getLoginRedirect();
     } catch (err) {
       const message =
         err instanceof ApiError

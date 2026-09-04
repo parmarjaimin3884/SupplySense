@@ -88,6 +88,9 @@ async def delete_cache_pattern(pattern: str) -> bool:
     if not client:
         return False
     try:
+        if pattern == "*":
+            await client.flushdb()
+            return True
         keys = await client.keys(pattern)
         if keys:
             await client.delete(*keys)

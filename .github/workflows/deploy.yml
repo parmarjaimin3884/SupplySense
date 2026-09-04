@@ -23,6 +23,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "$EC2_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
           echo "Syncing updated code to EC2 instance..."
           rsync -avz --delete \
@@ -33,7 +34,12 @@ jobs:
             --exclude 'venv' \
             --exclude '__pycache__' \
             --exclude '*.pem' \
-            -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude 'deploy.log' \
+            --exclude 'qdrant_data' \
+            --exclude 'logs' \
+            -e "ssh -o StrictHostKeyChecking=yes -i ~/.ssh/id_rsa" \
             ./ ${EC2_USER}@${EC2_HOST}:~/SupplySense/
 
       - name: Rebuild & Restart Containers on EC2
@@ -42,7 +48,7 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} << 'EOF'
+          ssh -o StrictHostKeyChecking=yes -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} << 'EOF'
             cd ~/SupplySense
             export NEXT_PUBLIC_API_URL="http://$(curl -s http://checkip.amazonaws.com || curl -s ifconfig.me):8000/api/v1"
             sudo docker compose build --build-arg NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL"

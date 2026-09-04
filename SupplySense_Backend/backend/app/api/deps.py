@@ -11,8 +11,8 @@ Provides FastAPI dependency providers for:
 - require_role()
 """
 
-from typing import AsyncGenerator, Callable, List, Optional, Any
-from fastapi import Depends, HTTPException, status, Header, Security
+from typing import AsyncGenerator, Callable, Optional, Any
+from fastapi import Depends, HTTPException, status, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,7 +55,6 @@ def get_qdrant():
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_scheme),
-    x_user_role: Optional[str] = Header(default=None, alias="X-User-Role"),
 ) -> UserResponse:
     """
     Validates JWT Bearer token or header fallback.
@@ -80,15 +79,10 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
-    # Dev / Header fallback if bearer omitted
-    role_str = "CSCO_EXECUTIVE" if x_user_role == "CSCO_EXECUTIVE" else (x_user_role or "Operations Manager")
-    return UserResponse(
-        id="usr_default_mgr",
-        username="default_manager",
-        email="manager@supplysense.io",
-        role=role_str,
-        employee_name="Enterprise Supply Manager",
-        warehouse_name="Surat Central Warehouse"
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required.",
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 

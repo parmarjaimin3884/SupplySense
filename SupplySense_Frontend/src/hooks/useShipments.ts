@@ -47,8 +47,37 @@ export function useUpdateShipmentStatus() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: { status: string; current_location?: string } }) =>
       updateShipmentStatus(id, payload),
-    onSuccess: () => {
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: shipmentKeys.all });
+      const previousData = queryClient.getQueriesData({ queryKey: shipmentKeys.all });
+
+      queryClient.setQueriesData({ queryKey: shipmentKeys.all }, (oldData: any) => {
+        if (!oldData) return oldData;
+        const list = oldData.data || oldData.items || (Array.isArray(oldData) ? oldData : null);
+        if (Array.isArray(list)) {
+          const updatedList = list.map((item: any) =>
+            item.id === id ? { ...item, current_status: payload.status } : item
+          );
+          if (oldData.data) return { ...oldData, data: updatedList };
+          if (oldData.items) return { ...oldData, items: updatedList };
+          return updatedList;
+        }
+        return oldData;
+      });
+
+      return { previousData };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: shipmentKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["transfers"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }
@@ -61,6 +90,7 @@ export function useReceiveShipment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: shipmentKeys.all });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["transfers"] });
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });

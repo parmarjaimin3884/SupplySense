@@ -48,30 +48,6 @@ export function CreateShipmentModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newShipmentItem = {
-      id: `SHP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-      purchase_order_id: purchaseOrderId,
-      po_number: poNumber,
-      product_name: productName,
-      sku: "SKU-JBL-0092",
-      quantity: 1000,
-      carrier,
-      vehicle_number: vehicleNumber,
-      current_status: "IN_TRANSIT",
-      current_location: currentLocation,
-      expected_arrival: expectedArrival,
-      delay_days: 0,
-      supplier_name: "Samsung Electronics",
-      warehouse_name: "Mumbai Western Hub",
-    };
-
-    try {
-      const saved = localStorage.getItem("supplysense_local_shipments");
-      const list = saved ? JSON.parse(saved) : [];
-      list.unshift(newShipmentItem);
-      localStorage.setItem("supplysense_local_shipments", JSON.stringify(list));
-    } catch {}
-
     try {
       await createMutation.mutateAsync({
         purchase_order_id: purchaseOrderId,

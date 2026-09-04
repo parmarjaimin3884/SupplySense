@@ -9,6 +9,7 @@ import hashlib
 import base64
 import json
 import time
+import os
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 
@@ -16,7 +17,7 @@ from backend.app.config.settings import settings
 from backend.app.schemas.auth import UserRole
 
 # Secret configuration
-SECRET_KEY = getattr(settings, "JWT_SECRET_KEY", "supplysense-enterprise-secret-key-2026-production")
+SECRET_KEY = settings.JWT_SECRET_KEY or settings.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -32,17 +33,30 @@ def _base64url_decode(data: str) -> bytes:
 
 
 def hash_password(password: str) -> str:
-    """Hash a raw password string using SHA-256 with salt."""
-    salt = "supplysense_salt_2026"
-    return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
+    """Hash a password with a unique, computationally expensive scrypt salt."""
+    salt = os.urandom(16)
+    derived = hashlib.scrypt(password.encode("utf-8"), salt=salt, n=2**14, r=8, p=1)
+    return f"scrypt${_base64url_encode(salt)}${_base64url_encode(derived)}"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against hash."""
-    return hash_password(plain_password) == hashed_password or plain_password == "admin123" or plain_password == "csco123"
+    """Verify new scrypt hashes and legacy hashes during account migration."""
+    if hashed_password.startswith("scrypt$"):
+        try:
+            _, salt_text, digest_text = hashed_password.split("$", 2)
+            salt = _base64url_decode(salt_text)
+            expected = _base64url_decode(digest_text)
+            actual = hashlib.scrypt(plain_password.encode("utf-8"), salt=salt, n=2**14, r=8, p=1)
+            return hmac.compare_digest(actual, expected)
+        except (ValueError, TypeError):
+            return False
+
+    # Existing accounts can log in once with their legacy stored hash; no universal password is accepted.
+    legacy = hashlib.sha256((plain_password + "supplysense_salt_2026").encode("utf-8")).hexdigest()
+    return hmac.compare_digest(legacy, hashed_password)
 
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None, token_type: str = "access") -> str:
     """Create a signed JWT Access Token."""
     to_encode = data.copy()
     now = datetime.now(timezone.utc)
@@ -54,7 +68,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     to_encode.update({
         "exp": int(expire.timestamp()),
         "iat": int(now.timestamp()),
-        "type": "access"
+        "type": token_type
     })
     
     header = {"alg": ALGORITHM, "typ": "JWT"}
@@ -75,10 +89,10 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 
 def create_refresh_token(data: Dict[str, Any]) -> str:
     """Create a signed JWT Refresh Token."""
-    return create_access_token(data, expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS))
+    return create_access_token(data, expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS), token_type="refresh")
 
 
-def decode_access_token(token: str) -> Dict[str, Any]:
+def decode_access_token(token: str, expected_type: str = "access") -> Dict[str, Any]:
     """Decode and verify JWT token payload."""
     try:
         parts = token.split('.')
@@ -93,6 +107,9 @@ def decode_access_token(token: str) -> Dict[str, Any]:
             raise ValueError("Invalid signature.")
             
         payload = json.loads(_base64url_decode(parts[1]).decode('utf-8'))
+
+        if payload.get("type") != expected_type or not payload.get("sub"):
+            raise ValueError("Invalid token type or subject.")
         
         if payload.get("exp") and payload["exp"] < int(time.time()):
             raise ValueError("Token expired.")

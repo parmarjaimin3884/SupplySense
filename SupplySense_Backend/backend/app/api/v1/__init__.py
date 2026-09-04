@@ -4,7 +4,8 @@ SupplySense — API v1 Router Aggregator
 Aggregates all 13 enterprise API routers under /api/v1.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from backend.app.api.deps import get_current_user
 
 from backend.app.api.v1.auth import router as auth_router
 from backend.app.api.v1.assistant import router as assistant_router
@@ -26,20 +27,12 @@ from backend.app.api.v1.demo import router as demo_router
 api_v1_router = APIRouter()
 
 api_v1_router.include_router(auth_router)
-api_v1_router.include_router(assistant_router)
-api_v1_router.include_router(dashboard_router)
-api_v1_router.include_router(inventory_router)
-api_v1_router.include_router(products_router)
-api_v1_router.include_router(suppliers_router)
-api_v1_router.include_router(warehouses_router)
-api_v1_router.include_router(purchase_orders_router)
-api_v1_router.include_router(shipments_router)
-api_v1_router.include_router(forecast_router)
-api_v1_router.include_router(risks_router)
-api_v1_router.include_router(executive_router)
-api_v1_router.include_router(settings_router)
-api_v1_router.include_router(transfers_router)
-api_v1_router.include_router(reports_router)
-api_v1_router.include_router(demo_router)
+for protected_router in [
+	assistant_router, dashboard_router, inventory_router, products_router,
+	suppliers_router, warehouses_router, purchase_orders_router, shipments_router,
+	forecast_router, risks_router, executive_router, settings_router,
+	transfers_router, reports_router, demo_router,
+]:
+	api_v1_router.include_router(protected_router, dependencies=[Depends(get_current_user)])
 
 __all__ = ["api_v1_router"]

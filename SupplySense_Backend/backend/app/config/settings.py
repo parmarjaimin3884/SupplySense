@@ -5,6 +5,7 @@ database, security, and AI provider environment variables.
 """
 
 from typing import Optional
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     # General App Config
     APP_NAME: str = "SupplySense"
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    DEBUG: bool = False
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
@@ -31,11 +32,13 @@ class Settings(BaseSettings):
 
     # Security Config
     SECRET_KEY: str = "supplysense-dev-super-secret-key-change-in-production-32bytes!"
+    JWT_SECRET_KEY: Optional[str] = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # Database Config (Neon PostgreSQL)
-    DATABASE_URL: str = "postgresql+asyncpg://neondb_owner:npg_a9cibxFz0hUO@ep-divine-waterfall-axacogw5.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require"
+    DATABASE_URL: str = "postgresql+asyncpg://localhost:5432/supplysense"
 
     # AI Provider Config
     LLM_PROVIDER: str = "groq"
@@ -76,6 +79,18 @@ class Settings(BaseSettings):
     HUGGINGFACE_EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_BATCH_SIZE: int = 64
     EMBEDDING_DEVICE: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_production_security(self):
+        if self.ENVIRONMENT.lower() == "production":
+            secret = self.JWT_SECRET_KEY or self.SECRET_KEY
+            if len(secret) < 32 or "change" in secret.lower() or "dev-" in secret.lower():
+                raise ValueError("A strong JWT_SECRET_KEY or SECRET_KEY is required in production.")
+            if self.DEBUG:
+                raise ValueError("DEBUG must be False in production.")
+            if "localhost" in self.DATABASE_URL or "127.0.0.1" in self.DATABASE_URL:
+                raise ValueError("DATABASE_URL must be explicitly configured in production.")
+        return self
 
 
 # Singleton instance

@@ -133,7 +133,7 @@ export function Showcase() {
                           <td className="py-3.5 px-4 font-mono font-bold text-[#111827]">{s.sku}</td>
                           <td className="py-3.5 px-4 font-semibold text-[#111827]">{s.name}</td>
                           <td className="py-3.5 px-4 text-[#4B5563] font-medium">{s.location}</td>
-                          <td className="py-3.5 px-4 text-right font-mono font-medium">{s.onHand.toLocaleString()} ea</td>
+                          <td className="py-3.5 px-4 text-right font-mono font-medium">{s.onHand.toLocaleString()} Units</td>
                           <td className="py-3.5 px-4 text-right font-mono font-bold text-sm">
                             <span
                               className={
@@ -307,7 +307,7 @@ export function Showcase() {
                         <span className="h-2.5 w-4 bg-[#CBD5E1] rounded" /> P95 Confidence Band
                       </span>
                       <span className="flex items-center gap-2">
-                        <span className="h-0.5 w-4 bg-[#DC2626]" /> Safety Stock Buffer (2,400 ea)
+                        <span className="h-0.5 w-4 bg-[#DC2626]" /> Safety Stock Buffer (2,400 Units)
                       </span>
                     </div>
                     <span className="font-mono text-xs text-[#111827] font-bold">

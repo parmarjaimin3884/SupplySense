@@ -201,31 +201,32 @@ export default function SKUDetailPage({
     alternateSupplier: "Kyoto Micro Tech",
   };
 
-  const item = fetchedItem
+  const rawItem = fetchedItem || fallbackFromDict || genericFallback;
+  const item = rawItem
     ? {
-        id: fetchedItem.id,
-        sku: fetchedItem.sku,
-        name: fetchedItem.name || fetchedItem.product_name,
-        category: fetchedItem.category_name || "Electronics",
-        currentStock: fetchedItem.available_quantity ?? fetchedItem.quantity_on_hand ?? 0,
-        onHand: fetchedItem.quantity_on_hand ?? 0,
-        available: fetchedItem.available_quantity ?? 0,
-        safetyStock: fetchedItem.reorder_level ?? 20,
-        daysRemaining: 14,
-        daysOfSupply: 24,
-        riskLevel: (fetchedItem.available_quantity <= fetchedItem.reorder_level ? "Critical" : "Low") as "Critical" | "High" | "Medium" | "Low",
-        riskStatus: (fetchedItem.available_quantity <= fetchedItem.reorder_level ? "Critical" : "Optimal") as "Critical" | "Low Buffer" | "Optimal" | "Overstocked",
-        recommendedAction: "Maintain Safety Stock Levels",
-        reorderQuantity: fetchedItem.reorder_level ?? 50,
-        unitCost: Number(fetchedItem.cost_price || fetchedItem.unit_cost || 100),
-        supplier: fetchedItem.supplier_name || "Tier-1 Vendor",
-        leadTimeDays: fetchedItem.lead_time || 14,
-        location: fetchedItem.warehouse_name || fetchedItem.location || "Central Hub",
-        confidenceScore: 94.5,
-        demandTrend: "Upward",
-        forecastDemand30d: (fetchedItem.reorder_level || 50) * 3,
-        burnRatePerDay: Math.max(1, Math.round((fetchedItem.available_quantity || 100) / 14)),
-        alternateSupplier: "Apex Global Semi",
+        id: rawItem.id,
+        sku: rawItem.sku,
+        name: rawItem.name || rawItem.product_name,
+        category: rawItem.category_name || rawItem.category || "Electronics",
+        currentStock: rawItem.quantity_on_hand ?? rawItem.onHand ?? rawItem.available_quantity ?? rawItem.currentStock ?? 0,
+        onHand: rawItem.quantity_on_hand ?? rawItem.onHand ?? 0,
+        available: rawItem.available_quantity ?? rawItem.available ?? 0,
+        safetyStock: rawItem.reorder_level ?? rawItem.safetyStock ?? 20,
+        daysRemaining: rawItem.daysRemaining ?? 14,
+        daysOfSupply: rawItem.daysOfSupply ?? 24,
+        riskLevel: ((rawItem.available_quantity ?? rawItem.available ?? 100) <= (rawItem.reorder_level ?? rawItem.safetyStock ?? 20) ? "Critical" : "Low") as "Critical" | "High" | "Medium" | "Low",
+        riskStatus: ((rawItem.available_quantity ?? rawItem.available ?? 100) <= (rawItem.reorder_level ?? rawItem.safetyStock ?? 20) ? "Critical" : "Optimal") as "Critical" | "Low Buffer" | "Optimal" | "Overstocked",
+        recommendedAction: rawItem.recommendedAction || "Maintain Safety Stock Levels",
+        reorderQuantity: rawItem.reorder_level ?? rawItem.reorderQuantity ?? 50,
+        unitCost: Number(rawItem.cost_price || rawItem.unit_cost || rawItem.unitCost || 100),
+        supplier: rawItem.supplier_name || rawItem.supplier || "Tier-1 Vendor",
+        leadTimeDays: rawItem.lead_time || rawItem.leadTimeDays || 14,
+        location: rawItem.warehouse_name || rawItem.location || "Central Hub",
+        confidenceScore: rawItem.confidenceScore ?? 94.5,
+        demandTrend: rawItem.demandTrend || "Upward",
+        forecastDemand30d: rawItem.forecastDemand30d || ((rawItem.reorder_level || 50) * 3),
+        burnRatePerDay: rawItem.burnRatePerDay || Math.max(1, Math.round(((rawItem.available_quantity ?? rawItem.available) || 100) / 14)),
+        alternateSupplier: rawItem.alternateSupplier || "Apex Global Semi",
       }
     : null;
 
@@ -438,7 +439,7 @@ export default function SKUDetailPage({
               <div className="text-lg font-bold font-mono text-[#111827]">
                 {item.forecastDemand30d} Units
               </div>
-              <span className="text-[10px] text-[#6B7280]">Daily burn: ~{item.burnRatePerDay} ea/day</span>
+              <span className="text-[10px] text-[#6B7280]">Daily burn: ~{item.burnRatePerDay} Units/day</span>
             </div>
           </div>
 
@@ -451,16 +452,22 @@ export default function SKUDetailPage({
         </section>
 
         {/* Current Stock vs Safety Thresholds */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl border border-[#E5E7EB] bg-white space-y-2 shadow-xs">
             <span className="text-xs text-[#6B7280]">Current Stock On Hand</span>
-            <div className="text-3xl font-bold font-mono text-[#111827]">{item.currentStock} ea</div>
+            <div className="text-3xl font-bold font-mono text-[#111827]">{item.onHand.toLocaleString('en-IN')} Units</div>
             <p className="text-xs text-[#4B5563]">Physical count in {item.location}.</p>
           </div>
 
           <div className="p-4 rounded-2xl border border-[#E5E7EB] bg-white space-y-2 shadow-xs">
+            <span className="text-xs text-[#6B7280]">Available Unreserved Stock</span>
+            <div className="text-3xl font-bold font-mono text-[#059669]">{item.available.toLocaleString('en-IN')} Units</div>
+            <p className="text-xs text-[#4B5563]">Available for immediate order fulfillment.</p>
+          </div>
+
+          <div className="p-4 rounded-2xl border border-[#E5E7EB] bg-white space-y-2 shadow-xs">
             <span className="text-xs text-[#6B7280]">Safety Stock Threshold</span>
-            <div className="text-3xl font-bold font-mono text-[#111827]">{item.safetyStock} ea</div>
+            <div className="text-3xl font-bold font-mono text-[#111827]">{item.safetyStock.toLocaleString('en-IN')} Units</div>
             <p className="text-xs text-[#4B5563]">Minimum required buffer to avoid line stoppages.</p>
           </div>
 

@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   backend:
     build:
@@ -8,13 +6,16 @@ services:
     container_name: supplysense-backend
     restart: always
     ports:
-      - "8000:8000"
+      - "0.0.0.0:8000:8000"
     env_file:
       - ./SupplySense_Backend/.env
     environment:
       - HOST=0.0.0.0
       - PORT=8000
       - ENABLE_LIVE_ERP_SIMULATOR=false
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -26,14 +27,14 @@ services:
       context: ./SupplySense_Frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
     container_name: supplysense-frontend
     restart: always
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
     depends_on:
       - backend
 

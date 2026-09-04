@@ -101,7 +101,7 @@ export default function ReorderPage() {
   const approvedItems = reorders.filter((r) => r.status === "approved");
 
   const pendingTotalCapital = pendingItems.reduce(
-    (acc, r) => acc + r.reorderQuantity * r.unitCost,
+    (acc, r) => acc + (r.reorderQuantity || 0) * (r.unitCost || 0),
     0
   );
 
@@ -143,7 +143,7 @@ export default function ReorderPage() {
           <div className="p-4 rounded-2xl border border-[#E5E7EB] bg-white shadow-xs">
             <div className="text-xs text-[#6B7280] font-medium mb-1">Total Pending Reorder Capital</div>
             <div className="text-2xl font-bold font-mono text-[#111827]">
-              ₹{pendingTotalCapital.toLocaleString('en-IN')}
+              ₹{(pendingTotalCapital || 0).toLocaleString('en-IN')}
             </div>
             <div className="text-[11px] text-[#2563EB] mt-0.5 font-medium">
               {pendingItems.length} Critical {pendingItems.length === 1 ? "Component" : "Components"} Queued
@@ -194,8 +194,8 @@ export default function ReorderPage() {
                   </p>
 
                   <div className="flex flex-wrap items-center gap-4 text-xs text-[#6B7280] pt-1">
-                    <span>Current On Hand: <strong className="font-mono text-[#111827]">{item.onHand.toLocaleString()}</strong></span>
-                    <span>PO Estimated Value: <strong className="font-mono text-[#111827]">₹{(item.reorderQuantity * item.unitCost).toLocaleString('en-IN')}</strong></span>
+                    <span>Current On Hand: <strong className="font-mono text-[#111827]">{(item.onHand ?? 0).toLocaleString()}</strong></span>
+                    <span>PO Estimated Value: <strong className="font-mono text-[#111827]">₹{((item.reorderQuantity ?? 0) * (item.unitCost ?? 0)).toLocaleString('en-IN')}</strong></span>
                   </div>
                 </div>
 
@@ -204,7 +204,7 @@ export default function ReorderPage() {
                   <div className="text-right pr-2">
                     <div className="text-xs text-[#6B7280]">Suggested Order</div>
                     <div className="text-xl font-bold font-mono text-[#111827]">
-                      {item.reorderQuantity.toLocaleString()} ea
+                      {(item.reorderQuantity ?? 0).toLocaleString()} Units
                     </div>
                   </div>
 

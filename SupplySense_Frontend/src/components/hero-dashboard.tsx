@@ -254,7 +254,7 @@ export function HeroDashboard() {
                   </td>
                   <td className="py-2.5 px-3 text-[#4B5563]">{item.location}</td>
                   <td className="py-2.5 px-3 text-right font-mono">
-                    {item.onHand.toLocaleString()} ea
+                    {item.onHand.toLocaleString()} Units
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-medium">
                     <span

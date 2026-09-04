@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, update, delete
 from sqlalchemy.orm import joinedload, selectinload
 
-from models import Shipment, GoodsReceived, PurchaseOrder, PurchaseOrderItem, Inventory, Product, Warehouse, Supplier, StockTransfer
+from models import Shipment, GoodsReceived, PurchaseOrder, PurchaseOrderItem, Inventory, Product, Warehouse, Supplier, StockTransfer, InventoryMovement
 from backend.app.schemas.shipment import (
     ShipmentResponse,
     ShipmentCreatePayload,
@@ -88,7 +88,7 @@ async def list_shipments(
                 quantity=poi.quantity if poi else 1200,
                 carrier=s.carrier or "BlueDart Express",
                 vehicle_number=s.vehicle_number or "MH-04-SS-8842",
-                current_status=s.current_status,
+                current_status="COMPLETED" if grn else s.current_status,
                 current_location=s.current_location or "Surat Gateway Terminal",
                 dispatch_date=s.dispatch_date or (today - timedelta(days=2)),
                 expected_arrival=s.expected_arrival or (today + timedelta(days=5)),
@@ -240,193 +240,129 @@ async def receive_shipment_grn(
     payload: GRNReceivingPayload,
     db: AsyncSession = Depends(get_db),
 ) -> BaseResponse[ShipmentResponse]:
-    # 1. Fetch Shipment
     s_stmt = select(Shipment).where(Shipment.id == shipment_id)
     shipment = (await db.execute(s_stmt)).scalars().first()
-    if not shipment:
-        # Fallback query
-        s_stmt_first = select(Shipment).limit(1)
-        shipment = (await db.execute(s_stmt_first)).scalars().first()
 
     if not shipment:
-        raise HTTPException(status_code=404, detail="Shipment record not found.")
+        trf_stmt = (
+            select(StockTransfer)
+            .options(
+                joinedload(StockTransfer.from_warehouse),
+                joinedload(StockTransfer.to_warehouse),
+                joinedload(StockTransfer.product),
+            )
+            .where(StockTransfer.id == shipment_id)
+        )
+        trf = (await db.execute(trf_stmt)).scalars().first()
+        if not trf:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shipment or Transfer record not found.")
+
+        if (trf.status or "").upper() in ["COMPLETED", "RECEIVED"]:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inter-depot transfer has already been received.")
+
+        today = date.today()
+        trf.status = "COMPLETED"
+        db.add(trf)
+        received_qty = payload.accepted_quantity
+
+        if trf.from_warehouse_id and trf.product_id:
+            from_inv = (await db.execute(select(Inventory).where(Inventory.warehouse_id == trf.from_warehouse_id, Inventory.product_id == trf.product_id))).scalars().first()
+            if from_inv:
+                from_inv.reserved_quantity = max(0, from_inv.reserved_quantity - trf.quantity)
+                from_inv.quantity_on_hand = max(0, from_inv.quantity_on_hand - trf.quantity)
+                db.add(from_inv)
+
+        if trf.to_warehouse_id and trf.product_id:
+            to_inv = (await db.execute(select(Inventory).where(Inventory.warehouse_id == trf.to_warehouse_id, Inventory.product_id == trf.product_id))).scalars().first()
+            if to_inv:
+                to_inv.available_quantity += received_qty
+                to_inv.quantity_on_hand += received_qty
+                db.add(to_inv)
+            else:
+                db.add(Inventory(id=str(uuid.uuid4()), warehouse_id=trf.to_warehouse_id, product_id=trf.product_id, quantity_on_hand=received_qty, available_quantity=received_qty, reserved_quantity=0))
+
+        db.add(InventoryMovement(id=str(uuid.uuid4()), warehouse_id=trf.to_warehouse_id, product_id=trf.product_id, movement_type="TRANSFER_IN", quantity=received_qty, reference_id=f"TRF-{str(trf.id)[:8].upper()}", movement_date=today))
+        await db.commit()
+        await delete_cache_pattern("*")
+
+        return BaseResponse(success=True, message=f"Inter-depot transfer completed. Auto-credited {received_qty} units into warehouse inventory stock.", data=ShipmentResponse(id=str(trf.id), purchase_order_id=str(trf.id), po_number=f"TRF-{str(trf.id)[:8].upper()}", product_name=trf.product.name if trf.product else "Transfer Item", sku=trf.product.sku if trf.product else "SKU-TRF", quantity=trf.quantity, carrier="Gati Express", vehicle_number="GJ-05-TRF-0001", current_status="COMPLETED", current_location=trf.to_warehouse.name if trf.to_warehouse else "Destination Hub", dispatch_date=trf.transfer_date or today, expected_arrival=(trf.transfer_date or today) + timedelta(days=3), actual_arrival=today, delay_days=0, supplier_name=f"Inter-Depot ({trf.from_warehouse.warehouse_code if trf.from_warehouse else 'SRC'} → {trf.to_warehouse.warehouse_code if trf.to_warehouse else 'DST'})", warehouse_name=trf.to_warehouse.name if trf.to_warehouse else "Destination Hub", from_warehouse_name=trf.from_warehouse.name if trf.from_warehouse else "Source Hub", accepted_quantity=received_qty, inspection_result=payload.inspection_result or "PASSED", shipment_type="INTER_DEPOT"))
+
+    if shipment.current_status == "COMPLETED":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Shipment has already been received.")
 
     today = date.today()
     shipment.current_status = "COMPLETED"
     shipment.actual_arrival = today
     db.add(shipment)
+    po = (await db.execute(select(PurchaseOrder).where(PurchaseOrder.id == shipment.purchase_order_id))).scalars().first()
+    poi = (await db.execute(select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == po.id).limit(1))).scalars().first()
+    product = (await db.execute(select(Product).where(Product.id == poi.product_id))).scalars().first()
+    supplier = (await db.execute(select(Supplier).where(Supplier.id == product.supplier_id))).scalars().first()
+    warehouse = (await db.execute(select(Warehouse).where(Warehouse.id == po.warehouse_id))).scalars().first()
 
-    # 2. Fetch PO & Items
-    po_stmt = select(PurchaseOrder).where(PurchaseOrder.id == shipment.purchase_order_id)
-    po = (await db.execute(po_stmt)).scalars().first()
-
-    product_id = None
-    warehouse_id = None
-    received_qty = payload.accepted_quantity
-
-    if po:
-        po.status = "Completed"
-        warehouse_id = po.warehouse_id
-        db.add(po)
-
-        poi_stmt = select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == po.id)
-        poi = (await db.execute(poi_stmt)).scalars().first()
-        if poi:
-            product_id = poi.product_id
-
-    # 3. Create GoodsReceived Note (GRN)
-    grn = GoodsReceived(
-        id=str(uuid.uuid4()),
-        purchase_order_id=shipment.purchase_order_id,
-        shipment_id=shipment.id,
-        inspection_result=payload.inspection_result or "PASSED",
-        accepted_quantity=payload.accepted_quantity,
-        rejected_quantity=payload.rejected_quantity or 0,
-        quality_issue=payload.quality_issue,
-    )
-    db.add(grn)
-
-    # 4. Auto-Credit Warehouse Inventory in PostgreSQL DB
-    if warehouse_id and product_id:
-        inv_stmt = select(Inventory).where(
-            Inventory.warehouse_id == warehouse_id,
-            Inventory.product_id == product_id,
-        )
-        inv = (await db.execute(inv_stmt)).scalars().first()
-        if inv:
-            inv.available_quantity += received_qty
-            inv.quantity_on_hand += received_qty
-            db.add(inv)
-        else:
-            new_inv = Inventory(
-                id=str(uuid.uuid4()),
-                warehouse_id=warehouse_id,
-                product_id=product_id,
-                quantity_on_hand=received_qty,
-                available_quantity=received_qty,
-                reserved_quantity=0,
-                reorder_level=500,
-            )
-            db.add(new_inv)
+    db.add(GoodsReceived(id=str(uuid.uuid4()), purchase_order_id=shipment.purchase_order_id, shipment_id=shipment.id, inspection_result=payload.inspection_result or "PASSED", accepted_quantity=payload.accepted_quantity, rejected_quantity=payload.rejected_quantity or 0, quality_issue=payload.quality_issue))
+    inv = (await db.execute(select(Inventory).where(Inventory.warehouse_id == warehouse.id, Inventory.product_id == product.id))).scalars().first()
+    if inv:
+        inv.available_quantity += payload.accepted_quantity
+        inv.quantity_on_hand += payload.accepted_quantity
+        db.add(inv)
+    else:
+        db.add(Inventory(id=str(uuid.uuid4()), warehouse_id=warehouse.id, product_id=product.id, quantity_on_hand=payload.accepted_quantity, available_quantity=payload.accepted_quantity, reserved_quantity=0))
 
     await db.commit()
     await delete_cache_pattern("*")
-
-    resp = ShipmentResponse(
-        id=shipment.id,
-        purchase_order_id=shipment.purchase_order_id,
-        po_number=po.po_number if po and hasattr(po, "po_number") else "PO-RECEIVED",
-        product_name="JBL AudiGen 8",
-        sku="SKU-JBL-0092",
-        quantity=received_qty,
-        carrier=shipment.carrier or "BlueDart Logistics",
-        vehicle_number=shipment.vehicle_number or "MH-04-SS-8842",
-        current_status="COMPLETED",
-        current_location="Warehouse Dock Gate #4",
-        dispatch_date=shipment.dispatch_date,
-        expected_arrival=shipment.expected_arrival,
-        actual_arrival=today,
-        delay_days=0,
-        supplier_name="Samsung Electronics",
-        warehouse_name="Mumbai Western Hub",
-        accepted_quantity=payload.accepted_quantity,
-        inspection_result=payload.inspection_result or "PASSED",
-    )
-
-    return BaseResponse(
-        success=True,
-        message=f"Goods Received Note (GRN) logged. Auto-credited {received_qty} units into warehouse inventory stock.",
-        data=resp,
-    )
+    return BaseResponse(success=True, message=f"Goods Received Note (GRN) logged. Auto-credited {payload.accepted_quantity} units.", data=ShipmentResponse(id=shipment.id, purchase_order_id=shipment.purchase_order_id, po_number=f"PO-{str(po.id)[:6].upper()}", product_name=product.name, sku=product.sku, quantity=poi.quantity, carrier=shipment.carrier or "BlueDart Logistics", vehicle_number=shipment.vehicle_number or "MH-04-SS-8842", current_status="COMPLETED", current_location=shipment.current_location or warehouse.name, dispatch_date=shipment.dispatch_date, expected_arrival=shipment.expected_arrival, actual_arrival=today, delay_days=0, supplier_name=supplier.company_name if supplier else None, warehouse_name=warehouse.name, accepted_quantity=payload.accepted_quantity, inspection_result=payload.inspection_result or "PASSED", shipment_type="PURCHASE_ORDER"))
 
 
-@router.patch(
-    "/{shipment_id}/status",
-    response_model=BaseResponse[ShipmentResponse],
-    status_code=status.HTTP_200_OK,
-    summary="Update Real-Time Telemetry / Transit Status",
-)
-async def update_shipment_status(
-    shipment_id: str,
-    payload: ShipmentStatusUpdatePayload,
-    db: AsyncSession = Depends(get_db),
-) -> BaseResponse[ShipmentResponse]:
-    stmt = select(Shipment).where(Shipment.id == shipment_id)
-    shipment = (await db.execute(stmt)).scalars().first()
-    if not shipment:
-        stmt_fallback = select(Shipment).limit(1)
-        shipment = (await db.execute(stmt_fallback)).scalars().first()
-
-    if not shipment:
-        raise HTTPException(status_code=404, detail="Shipment not found.")
-
-    shipment.current_status = payload.status
-    if payload.current_location:
-        shipment.current_location = payload.current_location
-    if payload.delay_reason:
-        shipment.delay_reason = payload.delay_reason
-
-    db.add(shipment)
-    await db.commit()
-    await delete_cache_pattern("*")
-
-    resp = ShipmentResponse(
-        id=shipment.id,
-        purchase_order_id=shipment.purchase_order_id,
-        po_number="PO-UPDATED",
-        product_name="JBL AudiGen 8",
-        sku="SKU-JBL-0092",
-        quantity=1671,
-        carrier=shipment.carrier,
-        vehicle_number=shipment.vehicle_number,
-        current_status=shipment.current_status,
-        current_location=shipment.current_location,
-        dispatch_date=shipment.dispatch_date,
-        expected_arrival=shipment.expected_arrival,
-        delay_days=shipment.delay_days or 0,
-        supplier_name="Samsung Electronics",
-        warehouse_name="Mumbai Western Hub",
-    )
-
-    return BaseResponse(
-        success=True,
-        message=f"Shipment status updated to {payload.status} in PostgreSQL database.",
-        data=resp,
-    )
+@router.patch("/{shipment_id}/status", response_model=BaseResponse[ShipmentResponse], status_code=status.HTTP_200_OK, summary="Update Real-Time Telemetry / Transit Status")
+async def update_shipment_status(shipment_id: str, payload: ShipmentStatusUpdatePayload, db: AsyncSession = Depends(get_db)) -> BaseResponse[ShipmentResponse]:
+    shipment = (await db.execute(select(Shipment).options(joinedload(Shipment.purchase_order).joinedload(PurchaseOrder.supplier), joinedload(Shipment.purchase_order).joinedload(PurchaseOrder.warehouse), joinedload(Shipment.purchase_order).selectinload(PurchaseOrder.items).joinedload(PurchaseOrderItem.product)).where(Shipment.id == shipment_id))).scalars().first()
+    if shipment:
+        shipment.current_status = payload.status
+        shipment.current_location = payload.current_location or shipment.current_location
+        shipment.delay_reason = payload.delay_reason or shipment.delay_reason
+        db.add(shipment)
+        await db.commit()
+        await delete_cache_pattern("*")
+        return BaseResponse(success=True, message=f"Shipment status updated to {payload.status}.", data=ShipmentResponse(id=shipment.id, purchase_order_id=shipment.purchase_order_id, po_number=f"PO-{str(shipment.purchase_order_id)[:6].upper()}", product_name=shipment.purchase_order.items[0].product.name if shipment.purchase_order and shipment.purchase_order.items else "Product", sku=shipment.purchase_order.items[0].product.sku if shipment.purchase_order and shipment.purchase_order.items else "SKU", quantity=shipment.purchase_order.items[0].quantity if shipment.purchase_order and shipment.purchase_order.items else 0, carrier=shipment.carrier or "BlueDart Express", vehicle_number=shipment.vehicle_number or "MH-04-SS-8842", current_status=shipment.current_status, current_location=shipment.current_location, dispatch_date=shipment.dispatch_date, expected_arrival=shipment.expected_arrival, delay_days=shipment.delay_days or 0, supplier_name=shipment.purchase_order.supplier.company_name if shipment.purchase_order and shipment.purchase_order.supplier else "Supplier", warehouse_name=shipment.purchase_order.warehouse.name if shipment.purchase_order and shipment.purchase_order.warehouse else "Warehouse", shipment_type="PURCHASE_ORDER"))
+    
+    trf = (await db.execute(select(StockTransfer).options(joinedload(StockTransfer.from_warehouse), joinedload(StockTransfer.to_warehouse), joinedload(StockTransfer.product)).where(StockTransfer.id == shipment_id))).scalars().first()
+    if trf:
+        trf.status = payload.status
+        db.add(trf)
+        if payload.status.upper() in ["COMPLETED", "RECEIVED"]:
+            from_inv = (await db.execute(select(Inventory).where(Inventory.warehouse_id == trf.from_warehouse_id, Inventory.product_id == trf.product_id))).scalars().first()
+            if from_inv:
+                from_inv.reserved_quantity -= trf.quantity
+                from_inv.quantity_on_hand -= trf.quantity
+                db.add(from_inv)
+            to_inv = (await db.execute(select(Inventory).where(Inventory.warehouse_id == trf.to_warehouse_id, Inventory.product_id == trf.product_id))).scalars().first()
+            if to_inv:
+                to_inv.available_quantity += trf.quantity
+                to_inv.quantity_on_hand += trf.quantity
+                db.add(to_inv)
+            else:
+                db.add(Inventory(id=str(uuid.uuid4()), warehouse_id=trf.to_warehouse_id, product_id=trf.product_id, quantity_on_hand=trf.quantity, available_quantity=trf.quantity, reserved_quantity=0))
+            db.add(InventoryMovement(id=str(uuid.uuid4()), warehouse_id=trf.to_warehouse_id, product_id=trf.product_id, movement_type="TRANSFER_IN", quantity=trf.quantity, reference_id=f"TRF-{str(trf.id)[:8].upper()}", movement_date=date.today()))
+        await db.commit()
+        await delete_cache_pattern("*")
+        return BaseResponse(success=True, message=f"Inter-depot transfer updated to {payload.status}.", data=ShipmentResponse(id=str(trf.id), purchase_order_id=str(trf.id), po_number=f"TRF-{str(trf.id)[:8].upper()}", product_name=trf.product.name if trf.product else "Transfer Item", sku=trf.product.sku if trf.product else "SKU-TRF", quantity=trf.quantity, carrier="Gati Express", vehicle_number="GJ-05-TRF-0001", current_status=trf.status, current_location=payload.current_location or f"{trf.from_warehouse.name if trf.from_warehouse else 'Source'} → {trf.to_warehouse.name if trf.to_warehouse else 'Dest'}", dispatch_date=trf.transfer_date or date.today(), expected_arrival=(trf.transfer_date or date.today()) + timedelta(days=3), delay_days=0, supplier_name=f"Inter-Depot ({trf.from_warehouse.warehouse_code if trf.from_warehouse else 'SRC'})", warehouse_name=trf.to_warehouse.name if trf.to_warehouse else "Destination Hub", from_warehouse_name=trf.from_warehouse.name if trf.from_warehouse else "Source Hub", shipment_type="INTER_DEPOT"))
+    raise HTTPException(status_code=404, detail="Not found.")
 
 
-@router.post(
-    "/telemetry/simulate",
-    response_model=BaseResponse[Dict[str, Any]],
-    status_code=status.HTTP_200_OK,
-    summary="Carrier GPS Webhook Telemetry Simulator",
-    description="Simulates automated carrier GPS updates (BlueDart / VRL) as trucks cross warehouse geofences.",
-)
-async def simulate_carrier_telemetry_webhook(
-    db: AsyncSession = Depends(get_db),
-) -> BaseResponse[Dict[str, Any]]:
-    stmt = select(Shipment).where(Shipment.current_status == "IN_TRANSIT")
-    shipments = (await db.execute(stmt)).scalars().all()
-
-    updated_count = 0
-    locations = [
-        "Mumbai Dock Gate #4 Check-in Geofence",
-        "Delhi Northern Depot Entrance Ramp",
-        "Surat Central Logistics Gateway",
-    ]
-
-    for i, s in enumerate(shipments):
-        s.current_status = "DELIVERED"
-        s.current_location = locations[i % len(locations)]
-        s.actual_arrival = date.today()
+@router.post("/telemetry/simulate", response_model=BaseResponse[Dict[str, Any]], status_code=status.HTTP_200_OK, summary="Carrier GPS Webhook Telemetry Simulator")
+async def simulate_carrier_telemetry_webhook(db: AsyncSession = Depends(get_db)) -> BaseResponse[Dict[str, Any]]:
+    shipments = (await db.execute(select(Shipment).where(Shipment.current_status == "IN_TRANSIT"))).scalars().all()
+    transfers = (await db.execute(select(StockTransfer).where(StockTransfer.status == "IN_TRANSIT"))).scalars().all()
+    updated = 0
+    for s in shipments:
+        s.current_status, s.actual_arrival = "DELIVERED", date.today()
         db.add(s)
-        updated_count += 1
-
+        updated += 1
+    for t in transfers:
+        t.status = "DELIVERED"
+        db.add(t)
+        updated += 1
     await db.commit()
     await delete_cache_pattern("*")
-
-    return BaseResponse(
-        success=True,
-        message=f"Simulated live carrier GPS Webhook. Auto-transitioned {updated_count} in-transit shipment(s) to DELIVERED at dock gate.",
-        data={"updated_count": updated_count},
-    )
+    return BaseResponse(success=True, message=f"Simulated. {updated} items transitioned.", data={"updated_count": updated})

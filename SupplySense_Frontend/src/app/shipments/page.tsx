@@ -180,10 +180,11 @@ export default function ShipmentsPage() {
                   </tr>
                 ) : (
                   filteredShipments.map((s) => {
-                    const isCompleted = s.current_status === "COMPLETED";
-                    const isDelivered = s.current_status === "DELIVERED";
-                    const isInTransit = s.current_status === "IN_TRANSIT";
-                    const isDelayed = s.current_status === "DELAYED";
+                    const statusUpper = (s.current_status || "").toUpperCase();
+                    const isCompleted = statusUpper === "COMPLETED" || statusUpper === "RECEIVED";
+                    const isDelivered = statusUpper === "DELIVERED";
+                    const isInTransit = statusUpper === "IN_TRANSIT";
+                    const isDelayed = statusUpper === "DELAYED";
 
                     return (
                       <tr key={s.id} className="hover:bg-[#F9FAFB] transition-colors">
@@ -243,7 +244,7 @@ export default function ShipmentsPage() {
                             </span>
                           ) : (
                             <select
-                              value={s.current_status}
+                              value={statusUpper}
                               onChange={async (e) => {
                                 const newStatus = e.target.value;
                                 try {
@@ -251,7 +252,9 @@ export default function ShipmentsPage() {
                                     id: s.id,
                                     payload: { status: newStatus as any },
                                   });
-                                } catch {}
+                                } catch (err) {
+                                  console.error("Failed to update status:", err);
+                                }
                                 refetch();
                               }}
                               className={`px-2.5 py-1 rounded-full text-[11px] font-medium border focus:outline-none cursor-pointer ${

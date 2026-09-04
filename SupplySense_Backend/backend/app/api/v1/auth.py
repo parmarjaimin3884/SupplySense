@@ -206,7 +206,7 @@ async def login(
 async def refresh_token(payload: RefreshTokenRequest = Body(...)) -> BaseResponse[TokenResponse]:
     """Refreshes expired access tokens."""
     try:
-        data = decode_access_token(payload.refresh_token)
+        data = decode_access_token(payload.refresh_token, expected_type="refresh")
         token_payload = {
             "sub": data["sub"],
             "username": data.get("username", ""),
