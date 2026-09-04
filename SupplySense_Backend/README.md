@@ -159,4 +159,4 @@ SupplySense/
 - [ ] **Qdrant Document Ingestion Pipeline**: Build automated CLI script for chunking and embedding company SOP PDF documents into Qdrant.
 - [ ] **WebSocket Streaming**: Stream real-time node execution steps to frontend dashboards.
 - [ ] **Role-Based Access Control (RBAC)**: Secure executive summary and procurement escalation actions.
->>>>>>> Backend
+
